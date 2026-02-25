@@ -3,10 +3,10 @@
 name: CI
 
 on:
-    push:
-        branches: [ main ]
-    pull_request:
-        branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
@@ -33,15 +33,19 @@ jobs:
       # step 4: Linter - Flake8
       - name: Run Flake8
         run: |
-          flake8 .
+          # Specifically target the src and tests directories
+          flake8 src tests
 
       # step 5: Format check with Black
       - name: Run Black (check only)
         run: |
-          black --check .
+          # Check formatting only in the relevant directories
+          black --check src tests
 
       # step 6: Run tests with pytest
-
       - name: Run tests
+        env:
+          # Tells Python to look inside the src/ folder for your import statements
+          PYTHONPATH: src
         run: |
           pytest

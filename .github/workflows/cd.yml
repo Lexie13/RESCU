@@ -50,7 +50,7 @@ jobs:
       env:
         BRANCH: ${{ steps.extract_branch.outputs.branch }}
         ACCOUNT_ID: 164885464205
-        EXECUTION_ROLE: YourLambdaExecutionRole 
+        EXECUTION_ROLE: RescuLambdaExecutionRole 
       run: |
         FUNCTION_NAME="rescu-api-$BRANCH"
         

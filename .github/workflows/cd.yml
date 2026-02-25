@@ -1,0 +1,78 @@
+name: CD - Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'ci-cd-pipeline'
+
+# Required for OIDC
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies into deployment package
+      run: |
+        # AWS Lambda requires dependencies to be zipped alongside the code
+        if [ -f requirements.txt ]; then pip install -r requirements.txt -t .; fi
+
+    - name: Zip the code
+      run: |
+        zip -r function.zip . -x "*.git*" -x ".github/*" -x "tests/*"
+
+    - name: Configure AWS Credentials using OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::164885464205:role/GitHubActionsLambdaDeployRole
+        aws-region: us-east-1
+
+    - name: Extract branch name
+      id: extract_branch
+      shell: bash
+      run: |
+        BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-')
+        echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+    - name: Deploy dynamic Lambda function
+      env:
+        BRANCH: ${{ steps.extract_branch.outputs.branch }}
+        ACCOUNT_ID: 164885464205
+        EXECUTION_ROLE: YourLambdaExecutionRole 
+      run: |
+        FUNCTION_NAME="rescu-api-$BRANCH"
+        
+        # Check if the function already exists
+        if aws lambda get-function --function-name $FUNCTION_NAME > /dev/null 2>&1; then
+          echo "Function $FUNCTION_NAME exists. Updating code..."
+          aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --zip-file fileb://function.zip \
+            --publish
+            
+          # Wait for the update to complete before allowing further config changes
+          aws lambda wait function-updated --function-name $FUNCTION_NAME
+          
+        else
+          echo "Function $FUNCTION_NAME does not exist. Creating it now..."
+          aws lambda create-function \
+            --function-name $FUNCTION_NAME \
+            --runtime python3.10 \
+            --handler lambda_function.lambda_handler \
+            --role arn:aws:iam::$ACCOUNT_ID:role/$EXECUTION_ROLE \
+            --zip-file fileb://function.zip \
+            --timeout 15 \
+            --memory-size 128
+        fi

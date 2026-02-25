@@ -1,0 +1,72 @@
+name: CD - Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+      - ci-cd-pipeline
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Create Lambda deployment package
+      run: |
+        # 1. Create a clean, temporary directory
+        mkdir package
+        
+        # 2. Install dependencies directly into the package folder
+        if [ -f requirements.txt ]; then pip install -r requirements.txt -t ./package; fi
+        
+        # 3. Copy only the application source code into the package folder
+        # Make sure your lambda_function.py is inside a folder named 'src'
+        cp -r src/* ./package/
+        
+        # 4. Zip the contents of the package folder securely
+        cd package
+        zip -r ../function.zip .
+
+    - name: Configure AWS Credentials using OIDC
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::164885464205:role/GitHubActionsLambdaDeployRole
+        aws-region: us-east-1
+
+    - name: Deploy Lambda function
+      env:
+        ACCOUNT_ID: 164885464205
+        EXECUTION_ROLE: RescuLambdaExecutionRole
+      run: |
+        FUNCTION_NAME="rescu-api"
+        
+        if aws lambda get-function --function-name $FUNCTION_NAME > /dev/null 2>&1; then
+          echo "Function $FUNCTION_NAME exists. Updating code..."
+          aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --zip-file fileb://function.zip \
+            --publish
+          aws lambda wait function-updated --function-name $FUNCTION_NAME
+        else
+          echo "Function $FUNCTION_NAME does not exist. Creating it now..."
+          aws lambda create-function \
+            --function-name $FUNCTION_NAME \
+            --runtime python3.10 \
+            --handler lambda_function.lambda_handler \
+            --role arn:aws:iam::$ACCOUNT_ID:role/$EXECUTION_ROLE \
+            --zip-file fileb://function.zip \
+            --timeout 15 \
+            --memory-size 128
+        fi

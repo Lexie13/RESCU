@@ -1,4 +1,4 @@
-from src.lambda_function import lambda_handler
+from lambda_function import lambda_handler
 
 
 def test_basic_handler():

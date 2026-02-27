@@ -1,0 +1,51 @@
+# file to manage Continuous Integration on GitHub
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # step 1: Checkout code - pull code into runner
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 black pytest
+
+      # step 4: Linter - Flake8
+      - name: Run Flake8
+        run: |
+          # Specifically target the src and tests directories
+          flake8 src tests
+
+      # step 5: Format check with Black
+      - name: Run Black (check only)
+        run: |
+          # Check formatting only in the relevant directories
+          black --check src tests
+
+      # step 6: Run tests with pytest
+      - name: Run tests
+        env:
+          # Tells Python to look inside the src/ folder for your import statements
+          PYTHONPATH: src
+        run: |
+          pytest

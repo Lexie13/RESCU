@@ -26,17 +26,20 @@ jobs:
 
     - name: Create Lambda deployment package
       run: |
-        # 1. Create a clean, temporary directory
         mkdir package
         
-        # 2. Install dependencies directly into the package folder
-        if [ -f requirements.txt ]; then pip install -r requirements.txt -t ./package; fi
+        # Install dependencies using specific platform flags for AWS Lambda compatibility
+        if [ -f requirements.txt ]; then 
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target ./package \
+            --implementation cp \
+            --python-version 3.10 \
+            --only-binary=:all: \
+            -r requirements.txt
+        fi
         
-        # 3. Copy only the application source code into the package folder
-        # Make sure your lambda_function.py is inside a folder named 'src'
         cp -r src/* ./package/
-        
-        # 4. Zip the contents of the package folder securely
         cd package
         zip -r ../function.zip .
 

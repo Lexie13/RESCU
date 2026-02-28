@@ -6,10 +6,16 @@ def lambda_handler(event, context):
     RESCU API Entry Point
     """
     try:
-        http_method = event.get('httpMethod')
-        body = json.loads(event.get('body', '{}'))
+        method = event.get('httpMethod')
+        if not method and 'requestContext' in event:
+            method = event['requestContext'].get('http', {}).get('method')
+            
+        body_raw = event.get('body', '{}')
+        body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
 
-        if http_method == 'PUT':
+        print(f"Received {method} request with body: {body}")
+
+        if method == 'PUT':
             username = body.get('username')
             password = body.get('password')
             role = body.get('role', 'primary_user')
@@ -22,10 +28,17 @@ def lambda_handler(event, context):
             if result["success"]:
                 return {
                     "statusCode": 201, 
-                    "body": json.dumps({"message": "User added", "user_id": result["user_id"]})
+                    "body": json.dumps({
+                        "message": "User added", 
+                        "user_id": result["user_id"]
+                    })
                 }
         
-        return {"statusCode": 405, "body": json.dumps("Method Not Allowed")}
+        return {
+            "statusCode": 405, 
+            "body": json.dumps(f"Method {method} Not Allowed")
+        }
 
     except Exception as e:
+        print(f"Error: {str(e)}")
         return {"statusCode": 500, "body": json.dumps(str(e))}

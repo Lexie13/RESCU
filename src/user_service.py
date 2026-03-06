@@ -9,22 +9,25 @@ from boto3.dynamodb.conditions import Key
 
 # Configuration
 dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("logins")
+table_logins = dynamodb.Table("logins")
+table_users = dynamodb.Table("users")
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
 
 
-def put_new_user(username, password, role="primary_user"):
+def put_new_user(username, password, first_name, last_name, phone, email, role="primary_user"):
     """
-    Creates a new user record in DynamoDB with a hashed password.
-    Ensures passwords are never stored in plaintext per NIST 800-63B.
+    Creates entries in both 'logins' and 'users' tables linked by a common user_id.
     """
+    # 1. Generate unique key for both entries
+    user_id = str(uuid.uuid4())
+    
+    # 2. Hash password for 'logins' table
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt)
 
-    user_id = str(uuid.uuid4())
-
-    user_item = {
+    # 3. Prepare items
+    login_item = {
         "user_id": user_id,
         "username": username,
         "password": hashed_password.decode("utf-8"),
@@ -32,10 +35,24 @@ def put_new_user(username, password, role="primary_user"):
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
 
+    user_profile_item = {
+        "user_id": user_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "phone_number": phone,
+        "email": email
+    }
+
     try:
-        table.put_item(
-            Item=user_item, ConditionExpression="attribute_not_exists(user_id)"
+        # Save to logins table
+        table_logins.put_item(
+            Item=login_item, 
+            ConditionExpression="attribute_not_exists(user_id)"
         )
+        
+        # Save to users table
+        table_users.put_item(Item=user_profile_item)
+        
         return {"success": True, "user_id": user_id}
     except ClientError as e:
         print(f"Error adding user: {e.response['Error']['Message']}")
@@ -48,7 +65,7 @@ def authenticate_user(username, password):
     """
     try:
         # Query the GSI 'username-index' to find the user efficiently
-        response = table.query(
+        response = table_logins.query(
             IndexName="username-index",
             KeyConditionExpression=Key("username").eq(username),
         )
@@ -86,7 +103,7 @@ def delete_user(user_id):
     Deletes a user entry from the database using their unique user_id.
     """
     try:
-        table.delete_item(Key={"user_id": user_id})
+        table_logins.delete_item(Key={"user_id": user_id})
         return {"success": True}
     except ClientError as e:
         print(f"Delete error: {e.response['Error']['Message']}")

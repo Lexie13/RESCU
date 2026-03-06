@@ -74,3 +74,8 @@ jobs:
             --timeout 15 \
             --memory-size 128
         fi
+        
+    - name: Deploy Frontend to S3
+      run: |
+        # Sync the frontend directory to the S3 bucket and delete files in S3 not present locally
+        aws s3 sync frontend/ s3://rescu-frontend --delete

@@ -1,20 +1,23 @@
 import json
-from user_service import put_new_user
+from user_service import put_new_user, authenticate_user, delete_user
 
 def lambda_handler(event, context):
     """
-    RESCU API Entry Point
+    RESCU API Entry Point. Routes requests based on HTTP Method and Path.
     """
     try:
+        # Extract method and path
         method = event.get('httpMethod')
+        path = event.get('path', '')
+        
         if not method and 'requestContext' in event:
             method = event['requestContext'].get('http', {}).get('method')
+            path = event['requestContext'].get('http', {}).get('path', '')
             
         body_raw = event.get('body', '{}')
         body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
 
-        print(f"Received {method} request with body: {body}")
-
+        # ROUTE: Create User (PUT /login)
         if method == 'PUT':
             username = body.get('username')
             password = body.get('password')
@@ -24,15 +27,36 @@ def lambda_handler(event, context):
                 return {"statusCode": 400, "body": json.dumps("Missing credentials")}
 
             result = put_new_user(username, password, role)
+            return {
+                "statusCode": 201 if result["success"] else 400,
+                "body": json.dumps(result)
+            }
+
+        # ROUTE: Login (POST /login)
+        elif method == 'POST':
+            username = body.get('username')
+            password = body.get('password')
             
-            if result["success"]:
-                return {
-                    "statusCode": 201, 
-                    "body": json.dumps({
-                        "message": "User added", 
-                        "user_id": result["user_id"]
-                    })
-                }
+            if not username or not password:
+                return {"statusCode": 400, "body": json.dumps("Username and password required")}
+
+            result = authenticate_user(username, password)
+            return {
+                "statusCode": 200 if result["success"] else 401,
+                "body": json.dumps(result)
+            }
+
+        # ROUTE: Delete User (DELETE /user)
+        elif method == 'DELETE':
+            user_id = body.get('user_id')
+            if not user_id:
+                return {"statusCode": 400, "body": json.dumps("user_id required for deletion")}
+
+            result = delete_user(user_id)
+            return {
+                "statusCode": 200 if result["success"] else 500,
+                "body": json.dumps(result)
+            }
         
         return {
             "statusCode": 405, 
@@ -40,5 +64,5 @@ def lambda_handler(event, context):
         }
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return {"statusCode": 500, "body": json.dumps(str(e))}
+        print(f"Handler Error: {str(e)}")
+        return {"statusCode": 500, "body": json.dumps("Internal Server Error")}

@@ -22,12 +22,16 @@ def lambda_handler(event, context):
         if method == "PUT":
             username = body.get("username")
             password = body.get("password")
+            first_name = body.get("first_name")
+            last_name = body.get("last_name")
+            phone = body.get("phone")
+            email = body.get("email")
             role = body.get("role", "primary_user")
 
-            if not username or not password:
-                return {"statusCode": 400, "body": json.dumps("Missing credentials")}
+            if not all([username, password, first_name, last_name, phone, email]):
+                return {"statusCode": 400, "body": json.dumps("Missing required registration fields")}
 
-            result = put_new_user(username, password, role)
+            result = put_new_user(username, password, first_name, last_name, phone, email, role)
             return {
                 "statusCode": 201 if result["success"] else 400,
                 "body": json.dumps(result),

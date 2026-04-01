@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>R.E.S.C.U. Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="main-wrapper">
+    <header class="hero-section">
+        <h1>Welcome, {{ username }}!</h1>
+        <p class="user-email">{{ email }}</p>
+    </header>
+
+    <hr class="full-separator">
+
+    <section class="status-container">
+        <div class="status-card">
+            <span class="label">Battery Status</span>
+            <span class="value">{{ device.battery }}</span>
+        </div>
+        <div class="status-card">
+            <span class="label">Connection</span>
+            <span class="value online">{{ device.status }}</span>
+        </div>
+    </section>
+
+    <nav class="action-list">
+        <a href="{{ url_for('edit_profile') }}" class="action-item">
+            <span>Account Info</span>
+            <span class="arrow">→</span>
+        </a>
+
+        <a href="{{ url_for('device_status') }}" class="action-item">
+            <span>Device Settings</span>
+            <span class="arrow">→</span>
+        </a>
+
+        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item">
+            <span>Emergency Contacts</span>
+            <span class="arrow">→</span>
+        </a>
+        
+        <a href="{{ url_for('fall_history') }}" class="action-item">
+            <span>Fall History</span>
+            <span class="arrow">→</span>
+        </a>
+    </nav>
+
+    <footer>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+    </footer>
+</div>
+
+</body>
+</html>

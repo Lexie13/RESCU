@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign Up</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Create Account</h2>
+
+    <form action="{{ url_for('signup') }}" method="POST" onsubmit="return validatePasswords()">
+
+        <!-- Role Selection -->
+        <div class="role-buttons">
+            <input type="radio" id="owner" name="role" value="owner" required>
+            <label for="owner">Owner</label>
+
+            <input type="radio" id="caregiver" name="role" value="caregiver" required>
+            <label for="caregiver">Caregiver</label>
+        </div>
+
+        <!-- First Name -->
+        <input type="text" name="first_name" placeholder="First Name" required>
+
+        <!-- Last Name -->
+        <input type="text" name="last_name" placeholder="Last Name" required>
+
+        <!-- Phone Number -->
+        <input type="tel" name="phone" placeholder="Phone Number" required>
+
+        <!-- Email -->
+        <input type="email" name="email" placeholder="Email Address" required>
+
+        <!-- Username -->
+        <input type="text" name="username" placeholder="Username" required>
+
+        <!-- Password -->
+        <input type="password" id="password" name="password" placeholder="Password" required>
+
+        <!-- Confirm Password -->
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+
+        <!-- Error message -->
+        <div class="error" id="error-message">Passwords do not match!</div>
+
+        <!-- Sign Up Button -->
+        <button type="submit">Sign Up</button>
+    </form>
+
+    <div class="login-link">
+        <a href="{{ url_for('index') }}">Back to Login</a>
+    </div>
+</div>
+
+<script>
+    function validatePasswords() {
+        const password = document.getElementById("password").value;
+        const confirmPassword = document.getElementById("confirm_password").value;
+        const errorMessage = document.getElementById("error-message");
+
+        if (password !== confirmPassword) {
+            errorMessage.classList.add("show");
+            setTimeout(() => errorMessage.classList.remove("show"), 3000);
+            return false;
+        }
+
+        errorMessage.classList.remove("show");
+        return true;
+    }
+</script>
+
+</body>
+</html>

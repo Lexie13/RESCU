@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Emergency Contacts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+</head>
+<body>
+    <div class="form-container" style="width: 500px;">
+        <h2>Emergency Contacts</h2>
+        <p style="color: #666; margin-bottom: 20px;">Please add up to 5 contacts.</p>
+        
+        <form action="{{ url_for('signup_emergency') }}" method="POST">
+            {% for i in range(1, 6) %}
+            <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 10px;">
+                <input type="text" name="contact_name_{{ i }}" placeholder="Contact {{ i }} Name" style="width: 50%;">
+                <input type="tel" name="contact_phone_{{ i }}" placeholder="Phone Number" style="width: 50%;">
+            </div>
+            {% endfor %}
+            
+            <button type="submit" style="margin-top: 20px;">Save & Continue</button>
+        </form>
+    </div>
+</body>
+</html>

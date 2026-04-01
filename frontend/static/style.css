@@ -1,0 +1,131 @@
+/* General body */
+body {
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background: linear-gradient(to bottom, #1E90FF, #800080);
+    font-family: 'Roboto', sans-serif;
+    text-align: center;
+}
+
+/* Main heading */
+h1 {
+    color: #FFFFFF;
+    font-size: 80px;
+    font-family: 'Montserrat', sans-serif;
+    margin-bottom: 40px;
+}
+
+/* Form container */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #ffffff;
+    padding: 40px 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    width: 350px;
+}
+
+/* Forms */
+form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+form h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    margin-bottom: 20px;
+    font-size: 28px;
+    color: #1E90FF;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="password"] {
+    width: 90%;
+    padding: 12px 15px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 20px;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: #1E90FF;
+}
+
+/* Buttons */
+button {
+    width: 90%;
+    padding: 12px 15px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #1E90FF;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background: #104E8B;
+}
+
+/* OAuth buttons */
+.oauth-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.google-btn {
+    background-color: #DB4437;
+}
+
+.google-btn:hover {
+    background-color: #a33228;
+}
+
+.microsoft-btn {
+    background-color: #2F2F2F;
+}
+
+.microsoft-btn:hover {
+    background-color: #1b1b1b;
+}
+
+/* OR text */
+.or-text {
+    margin: 15px 0;
+    font-weight: bold;
+    color: #555;
+}
+
+/* Signup link */
+.signup-text {
+    margin-top: 30px;
+    font-size: 20px;
+}
+
+.signup-text a {
+    color: #1E90FF;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.signup-text a:hover {
+    text-decoration: underline;
+}

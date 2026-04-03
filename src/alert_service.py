@@ -5,10 +5,8 @@ from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource("dynamodb")
+table_users = dynamodb.Table("users")
 sns_client = boto3.client("sns")
-
-# Assuming a separate table for emergency contacts as per the Design Doc
-table_contacts = dynamodb.Table("emergency_contacts")
 
 # The ARN of the SNS Topic your emergency contacts are subscribed to
 SNS_TOPIC_ARN = os.environ.get("EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts")
@@ -20,7 +18,7 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
     """
     try:
         # 1. Fetch all emergency contacts for the primary user
-        response = table_contacts.query(
+        response = table_users.query(
             KeyConditionExpression=Key("user_id").eq(user_id)
         )
         contacts = response.get("Items", [])

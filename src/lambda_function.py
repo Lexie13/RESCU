@@ -1,5 +1,6 @@
 import json
 from user_service import put_new_user, authenticate_user, delete_user
+from alert_service import trigger_emergency_email_loop
 
 
 def lambda_handler(event, context):
@@ -27,11 +28,17 @@ def lambda_handler(event, context):
             phone = body.get("phone")
             email = body.get("email")
             role = body.get("role", "primary_user")
+            
+            # Extract emergency contacts (default to empty list if none provided)
+            emergency_contacts = body.get("emergency_contacts", [])
 
             if not all([username, password, first_name, last_name, phone, email]):
                 return {"statusCode": 400, "body": json.dumps("Missing required registration fields")}
 
-            result = put_new_user(username, password, first_name, last_name, phone, email, role)
+            result = put_new_user(
+                username, password, first_name, last_name, phone, email, role, emergency_contacts
+            )
+            
             return {
                 "statusCode": 201 if result["success"] else 400,
                 "body": json.dumps(result),
@@ -51,6 +58,23 @@ def lambda_handler(event, context):
             result = authenticate_user(username, password)
             return {
                 "statusCode": 200 if result["success"] else 401,
+                "body": json.dumps(result),
+            }
+        
+        # ROUTE: Trigger Fall Alert (POST /alert)
+        elif method == "POST" and "alert" in path.lower():
+            user_id = body.get("user_id")
+            location = body.get("location", "Location Unavailable")
+
+            if not user_id:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps("user_id required to trigger alert")
+                }
+
+            result = trigger_emergency_email_loop(user_id, location)
+            return {
+                "statusCode": 200 if result["success"] else 500,
                 "body": json.dumps(result),
             }
 

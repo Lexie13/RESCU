@@ -14,10 +14,13 @@ table_users = dynamodb.Table("users")
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
 
-def put_new_user(username, password, first_name, last_name, phone, email, role="primary_user"):
+def put_new_user(username, password, first_name, last_name, phone, email, role="primary_user", emergency_contacts=None):
     """
     Creates entries in both 'logins' and 'users' tables linked by a common user_id.
     """
+    if emergency_contacts is None:
+        emergency_contacts = []
+        
     user_id = str(uuid.uuid4())
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt)
@@ -35,7 +38,8 @@ def put_new_user(username, password, first_name, last_name, phone, email, role="
         "first_name": first_name,
         "last_name": last_name,
         "phone_number": phone,
-        "email": email
+        "email": email,
+        "emergency_contacts": emergency_contacts
     }
 
     try:
@@ -85,7 +89,7 @@ def authenticate_user(username, password):
                 "success": True, 
                 "token": token, 
                 "user_id": user_id,
-                "profile": profile # Includes first_name, last_name, phone, etc.
+                "profile": profile # Includes first_name, last_name, phone, emergency_contacts, etc.
             }
 
         return {"success": False, "error": "Incorrect username or password"}

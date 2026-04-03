@@ -2,44 +2,60 @@ import boto3
 import os
 import time
 from botocore.exceptions import ClientError
-from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource("dynamodb")
 table_users = dynamodb.Table("users")
 sns_client = boto3.client("sns")
 
-# The ARN of the SNS Topic your emergency contacts are subscribed to
 SNS_TOPIC_ARN = os.environ.get("EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts")
 
 def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
     """
-    Retrieves the emergency contacts for a given user, loops through them in 
-    priority order, and sends an email via AWS SNS notifying them of a fall.
+    Retrieves the user profile, extracts emergency contacts (handling DynamoDB Type Tags),
+    and sends an SNS email. Stops the loop upon the first successful send.
     """
     try:
-        # 1. Fetch all emergency contacts for the primary user
-        response = table_users.query(
-            KeyConditionExpression=Key("user_id").eq(user_id)
-        )
-        contacts = response.get("Items", [])
+        response = table_users.get_item(Key={"user_id": user_id})
+        user_profile = response.get("Item")
         
+        if not user_profile:
+            return {"success": False, "error": "User profile not found in database."}
+            
+        contacts = user_profile.get("emergency_contacts", [])
         if not contacts:
             return {"success": False, "error": "No emergency contacts found for this user."}
         
-        # 2. Sort contacts by priority (1 being highest priority)
-        # Assumes your database stores a numeric 'priority' field
-        contacts.sort(key=lambda x: x.get("priority", 99))
+        parsed_contacts = []
         
+        # 1. Safely extract data, unwrapping the 'M', 'S', and 'N' DynamoDB tags if present
+        for item in contacts:
+            contact_map = item.get("M", item) if isinstance(item, dict) else item
+            
+            raw_email = contact_map.get("email")
+            contact_email = raw_email.get("S") if isinstance(raw_email, dict) else raw_email
+            
+            raw_name = contact_map.get("name")
+            contact_name = raw_name.get("S") if isinstance(raw_name, dict) else raw_name
+            
+            raw_priority = contact_map.get("priority", 99)
+            priority = int(raw_priority.get("N", 99)) if isinstance(raw_priority, dict) else int(raw_priority)
+            
+            if contact_email:
+                parsed_contacts.append({
+                    "name": contact_name,
+                    "email": contact_email,
+                    "priority": priority
+                })
+        
+        # Sort contacts by priority (1 being highest)
+        parsed_contacts.sort(key=lambda x: x.get("priority", 99))
         notified_contacts = []
 
-        # 3. Iterate through contacts to find the email and send the alert
-        for contact in contacts:
-            contact_email = contact.get("email")
-            contact_name = contact.get("name", "Emergency Contact")
+        # 2. Iterate and send
+        for contact in parsed_contacts:
+            contact_email = contact["email"]
+            contact_name = contact["name"] or "Emergency Contact"
             
-            if not contact_email:
-                continue # Skip if this contact only has a phone number
-                
             subject = "URGENT: RESCU Fall Detected"
             message = (
                 f"Hello {contact_name},\n\n"
@@ -50,14 +66,10 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
             )
             
             try:
-                # 4. Publish the email alert to the SNS Topic
-                # The subscriber filter policies in AWS would route it to the specific email
                 sns_response = sns_client.publish(
                     TopicArn=SNS_TOPIC_ARN,
                     Subject=subject,
                     Message=message,
-                    # MessageAttributes can be used if you set up SNS Filter Policies 
-                    # so only the specific contact's email gets this specific message
                     MessageAttributes={
                         'target_email': {
                             'DataType': 'String',
@@ -73,14 +85,17 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
                 
                 print(f"Alert sent successfully to {contact_email}")
                 
-                # Based on your design doc: Wait 60 seconds before escalating to the next contact.
-                # NOTE: For AWS Lambda, long time.sleep() calls consume billable execution time. 
-                # For production, consider using AWS Step Functions to manage this 60-second wait state.
-                time.sleep(10)
+                # 3. END THE LOOP ON SUCCESS
+                # Once an email is successfully accepted by SNS, exit the loop so we don't 
+                # wait 60 seconds or message the lower-priority contacts.
+                break 
 
             except ClientError as sns_err:
                 print(f"Failed to send SNS to {contact_email}: {sns_err}")
-                continue # Try the next contact if this one fails
+                
+                # If this specific contact fails, wait 60 seconds then try the next one
+                time.sleep(60) 
+                continue 
                 
         if not notified_contacts:
              return {"success": False, "error": "Loop finished, but no valid emails could be notified."}
@@ -88,5 +103,5 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
         return {"success": True, "notified": notified_contacts}
 
     except ClientError as e:
-        print(f"DynamoDB Query Error: {e.response['Error']['Message']}")
+        print(f"DynamoDB Error: {e.response['Error']['Message']}")
         return {"success": False, "error": str(e)}

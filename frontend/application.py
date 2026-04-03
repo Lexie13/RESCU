@@ -147,7 +147,7 @@ def login():
         session['user'] = username
         return redirect(url_for('home'))
 
-    return render_template('login.html', error="Authentication Error: Please check username and password")
+    return "Invalid username or password!"
 
 @app.route('/logout')
 def logout():
@@ -204,9 +204,46 @@ def fall_history():
 def device_status():
     return "Device Status Page"
 
-@app.route('/edit-profile')
+@app.route('/edit-profile', methods=['GET', 'POST'])
 def edit_profile():
-    return "Edit Profile Page"
+    username = session.get('user')
+    if not username:
+        return redirect(url_for('index'))
+
+    user = users.get(username, {})
+
+    if request.method == 'POST':
+        new_username = request.form.get('username', username).strip()
+
+        # Handle username change
+        if new_username != username:
+            if new_username in users:
+                return render_template('edit_profile.html', username=username, user=user, error="Username already taken.")
+            users[new_username] = users.pop(username)
+            emergency_contacts[new_username] = emergency_contacts.pop(username, [])
+            session['user'] = new_username
+            username = new_username
+            user = users[username]
+
+        # Update fields
+        user['first_name'] = request.form.get('first_name', '').strip()
+        user['last_name']  = request.form.get('last_name', '').strip()
+        user['phone']      = request.form.get('phone', '').strip()
+        user['email']      = request.form.get('email', '').strip()
+        user['role']       = request.form.get('role', 'owner')
+
+        # Password change (optional)
+        new_password = request.form.get('new_password', '').strip()
+        confirm      = request.form.get('confirm_password', '').strip()
+        if new_password:
+            if new_password == confirm:
+                user['password'] = new_password
+            else:
+                return render_template('edit_profile.html', username=username, user=user, error="Passwords do not match.")
+
+        return redirect(url_for('edit_profile'))
+
+    return render_template('edit_profile.html', username=username, user=user)
 
 # OAUTH CALLBACKS (Google/MS) remain as you had them...
 

@@ -135,3 +135,20 @@ footer {
     background: white;
     color: #800080;
 }
+
+#connect-ble {
+    width: 100%;
+    max-width: 800px;
+    background: #800080 !important; /* Stand-out color for the action */
+    color: #ffffff !important;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+#connect-ble:hover {
+    background: #3ec943 !important;
+    transform: translateY(-2px);
+}

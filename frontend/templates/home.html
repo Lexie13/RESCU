@@ -19,13 +19,19 @@
     <section class="status-container">
         <div class="status-card">
             <span class="label">Battery Status</span>
-            <span class="value">{{ device.battery }}</span>
+            <span id="battery-val" class="value">{{ device.battery }}</span>
         </div>
         <div class="status-card">
             <span class="label">Connection</span>
-            <span class="value online">{{ device.status }}</span>
+            <span id="connection-status" class="value online">{{ device.status }}</span>
         </div>
     </section>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+        <button id="connect-ble" class="action-item" style="background: #1E90FF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+            Connect to RESCU Device
+        </button>
+    </div>
 
     <nav class="action-list">
         <a href="{{ url_for('edit_profile') }}" class="action-item">
@@ -42,7 +48,7 @@
             <span>Emergency Contacts</span>
             <span class="arrow">→</span>
         </a>
-        
+
         <a href="{{ url_for('fall_history') }}" class="action-item">
             <span>Fall History</span>
             <span class="arrow">→</span>
@@ -54,5 +60,68 @@
     </footer>
 </div>
 
+<script>
+const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
+const BATTERY_LEVEL_UUID = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
+
+const connectBtn = document.getElementById('connect-ble');
+const batteryEl = document.getElementById('battery-val');
+const statusEl = document.getElementById('connection-status');
+
+connectBtn.addEventListener('click', async () => {
+    try {
+        statusEl.textContent = "Searching...";
+
+        // 1. Request the device
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ name: 'RESCU_DEVICE' }],
+            optionalServices: [BATTERY_SERVICE_UUID]
+        });
+
+        // 2. Connect to GATT Server
+        const server = await device.gatt.connect();
+        statusEl.textContent = "Connected";
+        statusEl.style.color = "#00FF00"; // Green for connected
+
+        // 3. Get the Battery Service
+        const service = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
+
+        // 4. Start Notifications for real-time polling
+        await characteristic.startNotifications();
+
+        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+            const decoder = new TextDecoder('utf-8');
+            const rawData = decoder.decode(event.target.value);
+
+            try {
+                const data = JSON.parse(rawData);
+                if (data.type === "BATTERY") {
+                    batteryEl.textContent = data.battery_pct + "%";
+                }
+            } catch (e) {
+                console.error("JSON Parse Error:", e, "Raw data:", rawData);
+            }
+        });
+
+        // Initial Read
+        const initialValue = await characteristic.readValue();
+        const decodedInitial = new TextDecoder('utf-8').decode(initialValue);
+        const initialData = JSON.parse(decodedInitial);
+        batteryEl.textContent = initialData.battery_pct + "%";
+
+        // Handle Disconnection
+        device.addEventListener('gattserverdisconnected', () => {
+            statusEl.textContent = "Disconnected";
+            statusEl.classList.remove("online"); // Returns to default white/red
+            batteryEl.textContent = "--";
+        });
+
+    } catch (error) {
+        console.error("BLE Error:", error);
+        statusEl.textContent = "Error";
+    }
+});
+</script>
 </body>
 </html>

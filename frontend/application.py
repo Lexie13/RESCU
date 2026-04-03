@@ -29,8 +29,8 @@ microsoft = oauth.register(
 )
 
 # --- In-memory 'database' ---
-users = {}  
-tasks = {}  
+users = {}
+tasks = {}
 emergency_contacts = {}
 
 @app.route('/')
@@ -48,7 +48,7 @@ def signup_page():
 def signup():
     username = request.form.get('username')
     password = request.form.get('password')
-    
+
     if not username or not password:
         return "Please enter both username and password."
 
@@ -82,7 +82,7 @@ def signup_emergency():
             phone = request.form.get(f'contact_phone_{i}')
             if name and phone:
                 contacts_list.append({"name": name, "phone": phone})
-        
+
         emergency_contacts[username] = contacts_list
         return redirect(url_for('home'))
 
@@ -105,7 +105,7 @@ def google_auth():
     session['user'] = user_info['email']
     if user_info['email'] not in users:
         users[user_info['email']] = {"email": user_info['email'], "first_name": user_info.get('given_name')}
-    
+
     return redirect(url_for('home'))
 
 @app.route('/login/microsoft')
@@ -121,11 +121,11 @@ def microsoft_auth():
     # Fetch user data from Microsoft Graph API
     resp = microsoft.get('me')
     user_info = resp.json()
-    
+
     # Simple logic to log them in to your session
     user_email = user_info.get('userPrincipalName')
     session['user'] = user_email
-    
+
     # If they are a new user, add them to your 'users' dictionary
     if user_email not in users:
         users[user_email] = {
@@ -133,7 +133,7 @@ def microsoft_auth():
             "first_name": user_info.get('givenName'),
             "last_name": user_info.get('surname')
         }
-    
+
     return redirect(url_for('home'))
 
 
@@ -165,12 +165,13 @@ def home():
 
     user_data = users.get(username, {})
     email = user_data.get('email', username)
-    
-    device_info = {"battery": "85%", "status": "Connected"}
-    return render_template('home.html', 
-                           username=username, 
-                           email=email, 
-                           device=device_info)
+
+    device_info = {"battery": "--", "status": "Disconnected"}
+
+    return render_template('home.html',
+                            username=username,
+                            email=email,
+                            device=device_info)
 
 @app.route('/edit-emergency-contacts', methods=['GET', 'POST'])
 def edit_emergency_contacts():
@@ -186,7 +187,7 @@ def edit_emergency_contacts():
         for name, phone in zip(names, phones):
             if name.strip() and phone.strip():
                 new_contacts.append({"name": name, "phone": phone})
-        
+
         emergency_contacts[username] = new_contacts
         return redirect(url_for('edit_emergency_contacts'))
 

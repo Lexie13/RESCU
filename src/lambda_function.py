@@ -98,3 +98,4 @@ def lambda_handler(event, context):
     except Exception as e:
         print(f"Handler Error: {str(e)}")
         return {"statusCode": 500, "body": json.dumps("Internal Server Error")}
+    

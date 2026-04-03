@@ -9,7 +9,7 @@
 <div class="main-wrapper">
     <header class="hero-section">
         <h1>Emergency Contacts</h1>
-        <p>Rank your contacts in order of priority (1-5).</p>
+        <p>Add, Remove, or Edit your Emergency Contacts</p>
     </header>
 
     <div class="contacts-manager-card">
@@ -34,10 +34,11 @@
 
             <div class="form-footer">
                 <button type="button" class="secondary-btn" onclick="addContactRow()">+ Add New</button>
-                <div class="action-buttons">
-                    <a href="{{ url_for('home') }}" class="cancel-btn">Cancel</a>
-                    <button type="submit" class="save-btn">Save Changes</button>
-                </div>
+                <button type="submit" class="save-btn" id="save-btn">Save Changes</button>
+            </div>
+
+            <div class="go-back-wrapper">
+                <a href="{{ url_for('home') }}" class="go-back-btn">&#8592; Go Back</a>
             </div>
         </form>
     </div>
@@ -106,6 +107,25 @@ function moveDown(btn) {
 
 // Ensure ranks are correct on initial load
 window.onload = updateRanks;
+
+function triggerSaveFeedback() {
+    const btn = document.getElementById('save-btn');
+    btn.classList.add('saving');
+    btn.textContent = '✓ Saved!';
+    setTimeout(() => {
+        btn.classList.remove('saving');
+        btn.textContent = 'Save Changes';
+    }, 1000);
+}
+
+document.getElementById('contacts-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    triggerSaveFeedback();
+    const form = this;
+    setTimeout(() => {
+        form.submit();
+    }, 1000);
+});
 </script>
 </body>
 </html>

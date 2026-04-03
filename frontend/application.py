@@ -147,7 +147,7 @@ def login():
         session['user'] = username
         return redirect(url_for('home'))
 
-    return "Invalid username or password!"
+    return render_template('login.html', error="Authentication Error: Please check username and password")
 
 @app.route('/logout')
 def logout():

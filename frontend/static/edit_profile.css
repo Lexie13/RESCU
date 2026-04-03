@@ -1,0 +1,240 @@
+/* edit_profile.css */
+
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    min-height: 100%;
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(to bottom, #1E90FF, #800080);
+    color: white;
+}
+
+.main-wrapper {
+    min-height: 100vh;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Header */
+.hero-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.5rem;
+    margin: 0;
+}
+
+.subtitle {
+    opacity: 0.85;
+    margin-top: 8px;
+    font-size: 1rem;
+}
+
+/* Card */
+.profile-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    border-radius: 20px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Field layout */
+.field-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+}
+
+.field-row {
+    display: flex;
+    gap: 15px;
+}
+
+.field-row .field-group {
+    flex: 1;
+}
+
+.field-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="email"],
+input[type="password"] {
+    padding: 12px 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+    color: #333;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+}
+
+input:focus {
+    outline: none;
+    border-color: #1E90FF;
+    box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.2);
+}
+
+/* Role toggle */
+.role-toggle-wrapper {
+    width: 100%;
+}
+
+.role-toggle {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 46px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: white;
+    border-radius: 7px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-label {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    transition: color 0.3s;
+}
+
+.toggle-label.active {
+    color: #1E90FF;
+}
+
+/* Change password button */
+.change-password-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background 0.2s;
+    align-self: flex-start;
+}
+
+.change-password-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Password fields - hidden by default */
+.password-fields {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.password-fields.visible {
+    max-height: 300px;
+    opacity: 1;
+}
+
+/* Error */
+.error {
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s ease-in-out;
+}
+
+.error.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Footer */
+.form-footer {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.save-btn {
+    background: #2ed573;
+    color: white;
+    border: none;
+    padding: 12px 35px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s, transform 0.1s;
+}
+
+.save-btn:active {
+    transform: scale(0.96);
+}
+
+.save-btn.saving {
+    background: #2ed573;
+    cursor: default;
+}
+
+/* Go back */
+.go-back-wrapper {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.go-back-btn {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.go-back-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}

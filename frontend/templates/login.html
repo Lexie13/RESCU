@@ -14,6 +14,9 @@
         <form action="/login" method="post" class="horizontal-form">
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
+            {% if error %}
+            <div class="error show">{{ error }}</div>
+            {% endif %}
             <button type="submit">Login</button>
         </form>
 

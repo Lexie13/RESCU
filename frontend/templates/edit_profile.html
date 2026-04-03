@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Account Info</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='edit_profile.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="main-wrapper">
+    <header class="hero-section">
+        <h1>Account Info</h1>
+        <p class="subtitle">Update your personal details below.</p>
+    </header>
+
+    <div class="profile-card">
+        <form action="{{ url_for('edit_profile') }}" method="POST" id="profile-form" onsubmit="return validateForm()">
+
+            <!-- Role -->
+            <div class="field-group">
+                <label class="field-label">Role</label>
+                <div class="role-toggle-wrapper">
+                    <div class="role-toggle" id="roleToggle" onclick="toggleRole()">
+                        <div class="toggle-slider" id="toggleSlider" style="transform: translateX({{ '100%' if user.role == 'caregiver' else '0' }})"></div>
+                        <span class="toggle-label left" id="labelOwner" class="{{ 'active' if user.role != 'caregiver' else '' }}">Owner</span>
+                        <span class="toggle-label right" id="labelCaregiver" class="{{ 'active' if user.role == 'caregiver' else '' }}">Caregiver</span>
+                    </div>
+                </div>
+                <input type="hidden" name="role" id="roleInput" value="{{ user.role or 'owner' }}">
+            </div>
+
+            <!-- Name row -->
+            <div class="field-row">
+                <div class="field-group">
+                    <label class="field-label" for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ user.first_name or '' }}" placeholder="First Name" required>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ user.last_name or '' }}" placeholder="Last Name" required>
+                </div>
+            </div>
+
+            <!-- Phone -->
+            <div class="field-group">
+                <label class="field-label" for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="Phone Number" required>
+            </div>
+
+            <!-- Email -->
+            <div class="field-group">
+                <label class="field-label" for="email">Email Address</label>
+                <input type="email" id="email" name="email" value="{{ user.email or '' }}" placeholder="Email Address" required>
+            </div>
+
+            <!-- Username -->
+            <div class="field-group">
+                <label class="field-label" for="username">Username</label>
+                <input type="text" id="username" name="username" value="{{ username }}" placeholder="Username" required>
+            </div>
+
+            <!-- Password section -->
+            <div class="field-group">
+                <label class="field-label">Password</label>
+                <button type="button" class="change-password-btn" onclick="togglePasswordFields()">Change Password</button>
+            </div>
+
+            <div class="password-fields" id="password-fields">
+                <div class="field-group">
+                    <label class="field-label" for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" placeholder="New Password">
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password">
+                </div>
+                <div class="error" id="error-message">Passwords do not match!</div>
+            </div>
+
+            <!-- Footer -->
+            <div class="form-footer">
+                <button type="submit" class="save-btn" id="save-btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="go-back-wrapper">
+        <a href="{{ url_for('home') }}" class="go-back-btn">← Go Back</a>
+    </div>
+</div>
+
+<script>
+    // --- Role toggle ---
+    let currentRole = document.getElementById('roleInput').value || 'owner';
+
+    function toggleRole() {
+        const slider = document.getElementById('toggleSlider');
+        const labelOwner = document.getElementById('labelOwner');
+        const labelCaregiver = document.getElementById('labelCaregiver');
+        const roleInput = document.getElementById('roleInput');
+
+        if (currentRole === 'owner') {
+            currentRole = 'caregiver';
+            slider.style.transform = 'translateX(100%)';
+            labelOwner.classList.remove('active');
+            labelCaregiver.classList.add('active');
+        } else {
+            currentRole = 'owner';
+            slider.style.transform = 'translateX(0)';
+            labelOwner.classList.add('active');
+            labelCaregiver.classList.remove('active');
+        }
+        roleInput.value = currentRole;
+    }
+
+    // Set correct initial label active state on load
+    window.addEventListener('DOMContentLoaded', () => {
+        const labelOwner = document.getElementById('labelOwner');
+        const labelCaregiver = document.getElementById('labelCaregiver');
+        if (currentRole === 'caregiver') {
+            labelCaregiver.classList.add('active');
+        } else {
+            labelOwner.classList.add('active');
+        }
+    });
+
+    // --- Password toggle ---
+    function togglePasswordFields() {
+        const fields = document.getElementById('password-fields');
+        fields.classList.toggle('visible');
+        if (!fields.classList.contains('visible')) {
+            document.getElementById('new_password').value = '';
+            document.getElementById('confirm_password').value = '';
+        }
+    }
+
+    // --- Form validation + save feedback ---
+    function validateForm() {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        const errorMessage = document.getElementById('error-message');
+
+        const fieldsVisible = document.getElementById('password-fields').classList.contains('visible');
+        if (fieldsVisible && newPassword && newPassword !== confirmPassword) {
+            errorMessage.classList.add('show');
+            setTimeout(() => errorMessage.classList.remove('show'), 3000);
+            return false;
+        }
+
+        return true;
+    }
+
+    document.getElementById('profile-form').addEventListener('submit', function(e) {
+        if (!validateForm()) return;
+        e.preventDefault();
+        const btn = document.getElementById('save-btn');
+        btn.classList.add('saving');
+        btn.textContent = '✓ Saved!';
+        const form = this;
+        setTimeout(() => {
+            btn.classList.remove('saving');
+            btn.textContent = 'Save Changes';
+            form.submit();
+        }, 1000);
+    });
+</script>
+</body>
+</html>

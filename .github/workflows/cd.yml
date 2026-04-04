@@ -77,7 +77,6 @@ jobs:
         
     - name: Deploy Frontend to Elastic Beanstalk
       run: |
-        cp requirements.txt frontend/
         cd frontend
         zip -r ../beanstalk-deploy.zip .
         cd ..

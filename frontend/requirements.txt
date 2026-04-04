@@ -1,0 +1,8 @@
+# requirements.txt
+
+boto3
+bcrypt
+PyJWT
+requests
+Flask
+Authlib

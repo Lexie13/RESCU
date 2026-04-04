@@ -75,7 +75,26 @@ jobs:
             --memory-size 128
         fi
         
-    - name: Deploy Frontend to S3
+    - name: Deploy Frontend to Elastic Beanstalk
       run: |
-        # Sync the frontend directory to the S3 bucket and delete files in S3 not present locally
-        aws s3 sync frontend/ s3://rescu-frontend --delete
+        # 1. Prepare the deployment package
+        cp requirements.txt frontend/
+        cd frontend
+        zip -r ../beanstalk-deploy.zip .
+        cd ..
+
+        # 2. Upload the zip to your existing S3 bucket 
+        # (Beanstalk needs it hosted somewhere to read it)
+        aws s3 cp beanstalk-deploy.zip s3://rescu-frontend/deploy-${{ github.sha }}.zip
+
+        # 3. Tell Beanstalk a new version exists
+        aws elasticbeanstalk create-application-version \
+          --application-name rescu-frontend \
+          --version-label ${{ github.sha }} \
+          --source-bundle S3Bucket="rescu-frontend",S3Key="deploy-${{ github.sha }}.zip"
+
+        # 4. Trigger the environment to update and run the new code
+        aws elasticbeanstalk update-environment \
+          --application-name rescu-frontend \
+          --environment-name YOUR_ENVIRONMENT_NAME \
+          --version-label ${{ github.sha }}

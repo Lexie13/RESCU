@@ -4,6 +4,7 @@ import os
 import requests
 
 app = Flask(__name__)
+application = app
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 API_GATEWAY_URL = os.environ.get("API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com")
 

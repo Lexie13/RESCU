@@ -96,5 +96,5 @@ jobs:
         # 4. Trigger the environment to update and run the new code
         aws elasticbeanstalk update-environment \
           --application-name rescu-frontend \
-          --environment-name YOUR_ENVIRONMENT_NAME \
+          --environment-name Rescu-frontend-env \
           --version-label ${{ github.sha }}

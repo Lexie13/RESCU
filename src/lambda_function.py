@@ -1,7 +1,13 @@
 import json
+from decimal import Decimal
 from user_service import put_new_user, authenticate_user, delete_user
 from alert_service import trigger_emergency_email_loop
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return int(obj) if obj % 1 == 0 else float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
 def lambda_handler(event, context):
     """
@@ -35,7 +41,7 @@ def lambda_handler(event, context):
                 return {"statusCode": 400, "body": json.dumps("Missing required registration fields")}
 
             result = put_new_user(username, password, first_name, last_name, phone, email, role, emergency_contacts)
-            return {"statusCode": 201 if result["success"] else 400, "body": json.dumps(result)}
+            return {"statusCode": 201 if result["success"] else 400, "body": json.dumps(result, cls=DecimalEncoder)}
 
         # ROUTE: Login (POST /login)
         elif method == "POST" and "login" in path.lower():
@@ -46,7 +52,7 @@ def lambda_handler(event, context):
                 return {"statusCode": 400, "body": json.dumps("Username and password required")}
 
             result = authenticate_user(username, password)
-            return {"statusCode": 200 if result["success"] else 401, "body": json.dumps(result)}
+            return {"statusCode": 200 if result["success"] else 401, "body": json.dumps(result, cls=DecimalEncoder)}
 
         # ROUTE: Trigger Fall Alert (POST /alert)
         elif method == "POST" and "alert" in path.lower():
@@ -57,7 +63,7 @@ def lambda_handler(event, context):
                 return {"statusCode": 400, "body": json.dumps("user_id required to trigger alert")}
 
             result = trigger_emergency_email_loop(user_id, location)
-            return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result)}
+            return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result, cls=DecimalEncoder)}
 
         # ROUTE: Delete User (DELETE /user)
         elif method == "DELETE" and "user" in path.lower():
@@ -66,9 +72,8 @@ def lambda_handler(event, context):
                 return {"statusCode": 400, "body": json.dumps("user_id required for deletion")}
 
             result = delete_user(user_id)
-            return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result)}
+            return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result, cls=DecimalEncoder)}
 
     except Exception as e:
         print(f"Handler Error: {str(e)}")
-        return {"statusCode": 500, "body": json.dumps("Internal Server Error")}
-    
+        return {"statusCode": 500, "body": json.dumps(f"Internal Server Error: {str(e)}")}

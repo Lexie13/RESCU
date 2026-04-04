@@ -77,24 +77,20 @@ jobs:
         
     - name: Deploy Frontend to Elastic Beanstalk
       run: |
-        # 1. Prepare the deployment package
         cp requirements.txt frontend/
         cd frontend
         zip -r ../beanstalk-deploy.zip .
         cd ..
 
-        # 2. Upload the zip to your existing S3 bucket 
-        # (Beanstalk needs it hosted somewhere to read it)
-        aws s3 cp beanstalk-deploy.zip s3://rescu-frontend/deploy-${{ github.sha }}.zip
+        aws s3 cp beanstalk-deploy.zip s3://rescu-frontend/deploy-${{ github.sha }}-${{ github.run_id }}.zip
 
-        # 3. Tell Beanstalk a new version exists
+        # Use both the SHA and the Run ID to guarantee a unique version label
         aws elasticbeanstalk create-application-version \
           --application-name rescu-frontend \
-          --version-label ${{ github.sha }} \
-          --source-bundle S3Bucket="rescu-frontend",S3Key="deploy-${{ github.sha }}.zip"
+          --version-label ${{ github.sha }}-${{ github.run_id }} \
+          --source-bundle S3Bucket="rescu-frontend",S3Key="deploy-${{ github.sha }}-${{ github.run_id }}.zip"
 
-        # 4. Trigger the environment to update and run the new code
         aws elasticbeanstalk update-environment \
           --application-name rescu-frontend \
           --environment-name Rescu-frontend-env \
-          --version-label ${{ github.sha }}
+          --version-label ${{ github.sha }}-${{ github.run_id }}

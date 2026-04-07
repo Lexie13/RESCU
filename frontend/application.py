@@ -152,9 +152,25 @@ def google_auth():
     token = google.authorize_access_token()
     user_info = google.get('userinfo').json()
     
-    # TODO: Send OAuth data to API Gateway to create/fetch the user profile
-    session['username'] = user_info['email']
-    session['profile'] = {"email": user_info['email'], "first_name": user_info.get('given_name')}
+    # Send OAuth data to API Gateway
+    try:
+        response = requests.post(f"{API_GATEWAY_URL}/oauth-login", json={
+            "email": user_info.get('email'),
+            "first_name": user_info.get('given_name', ''),
+            "last_name": user_info.get('family_name', '')
+        })
+        data = response.json()
+        
+        if response.status_code == 200 and data.get("success"):
+            session['token'] = data['token']
+            session['username'] = user_info.get('email')
+            session['user_id'] = data['user_id']
+            session['profile'] = data.get('profile', {})
+        else:
+            flash("Google Login Failed.", "error")
+    except Exception as e:
+        print(f"OAuth Backend Error: {e}")
+        
     return redirect(url_for('home'))
 
 @app.route('/login/microsoft')
@@ -170,9 +186,25 @@ def microsoft_auth():
 
     user_email = user_info.get('userPrincipalName')
     
-    # TODO: Send OAuth data to API Gateway to create/fetch the user profile
-    session['username'] = user_email
-    session['profile'] = {"email": user_email, "first_name": user_info.get('givenName'), "last_name": user_info.get('surname')}
+    # Send OAuth data to API Gateway
+    try:
+        response = requests.post(f"{API_GATEWAY_URL}/oauth-login", json={
+            "email": user_email,
+            "first_name": user_info.get('givenName', ''),
+            "last_name": user_info.get('surname', '')
+        })
+        data = response.json()
+        
+        if response.status_code == 200 and data.get("success"):
+            session['token'] = data['token']
+            session['username'] = user_email
+            session['user_id'] = data['user_id']
+            session['profile'] = data.get('profile', {})
+        else:
+            flash("Microsoft Login Failed.", "error")
+    except Exception as e:
+        print(f"OAuth Backend Error: {e}")
+        
     return redirect(url_for('home'))
 
 # =========================

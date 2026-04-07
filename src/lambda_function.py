@@ -1,6 +1,6 @@
 import json
 from decimal import Decimal
-from user_service import put_new_user, authenticate_user, delete_user
+from user_service import put_new_user, authenticate_user, delete_user, update_user, authenticate_oauth_user
 from alert_service import trigger_emergency_email_loop
 
 class DecimalEncoder(json.JSONEncoder):
@@ -64,6 +64,30 @@ def lambda_handler(event, context):
 
             result = trigger_emergency_email_loop(user_id, location)
             return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result, cls=DecimalEncoder)}
+        
+        # ROUTE: Update User Profile & Contacts (PATCH /user)
+        elif method == "PATCH" and "user" in path.lower():
+            user_id = body.get("user_id")
+            if not user_id:
+                return {"statusCode": 400, "body": json.dumps("user_id required for update")}
+
+            emergency_contacts = body.get("emergency_contacts")
+            profile_updates = body.get("profile_updates")
+
+            result = update_user(user_id, emergency_contacts, profile_updates)
+            return {"statusCode": 200 if result.get("success") else 500, "body": json.dumps(result, cls=DecimalEncoder)}
+
+        # ROUTE: OAuth Login/Signup (POST /oauth-login)
+        elif method == "POST" and "oauth-login" in path.lower():
+            email = body.get("email")
+            first_name = body.get("first_name", "")
+            last_name = body.get("last_name", "")
+
+            if not email:
+                return {"statusCode": 400, "body": json.dumps("email required for OAuth login")}
+
+            result = authenticate_oauth_user(email, first_name, last_name)
+            return {"statusCode": 200 if result.get("success") else 500, "body": json.dumps(result, cls=DecimalEncoder)}
 
         # ROUTE: Delete User (DELETE /user)
         elif method == "DELETE" and "user" in path.lower():

@@ -209,7 +209,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             user_login = items[0]
             user_id = user_login["user_id"]
         else:
-            # User does not exist, create them with a 
+            # User does not exist, create them with a
             # dummy secure password
             random_password = str(uuid.uuid4())
             create_result = put_new_user(

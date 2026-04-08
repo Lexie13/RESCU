@@ -34,22 +34,19 @@
     </div>
 
     <nav class="action-list">
-        <a href="{{ url_for('edit_profile') }}" class="action-item">
+        <a href="{{ url_for('edit_profile') }}" class="action-item" target="content-frame">
             <span>Account Info</span>
             <span class="arrow">→</span>
         </a>
-
-        <a href="{{ url_for('device_status') }}" class="action-item">
+        <a href="{{ url_for('device_status') }}" class="action-item" target="content-frame">
             <span>Device Settings</span>
             <span class="arrow">→</span>
         </a>
-
-        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item">
+        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item" target="content-frame">
             <span>Emergency Contacts</span>
             <span class="arrow">→</span>
         </a>
-
-        <a href="{{ url_for('fall_history') }}" class="action-item">
+        <a href="{{ url_for('fall_history') }}" class="action-item" target="content-frame">
             <span>Fall History</span>
             <span class="arrow">→</span>
         </a>
@@ -61,65 +58,30 @@
 </div>
 
 <script>
-const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
-const BATTERY_LEVEL_UUID = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
-
 const connectBtn = document.getElementById('connect-ble');
-const batteryEl = document.getElementById('battery-val');
 const statusEl = document.getElementById('connection-status');
 
-connectBtn.addEventListener('click', async () => {
-    try {
-        statusEl.textContent = "Searching...";
+// 1. Trigger connection in the Parent Shell
+connectBtn.addEventListener('click', () => {
+    statusEl.textContent = "Searching...";
+    window.parent.postMessage("CONNECT_BLE", "*");
+});
 
-        // 1. Request the device
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ name: 'RESCU_DEVICE' }],
-            optionalServices: [BATTERY_SERVICE_UUID]
-        });
+// 2. Listen for status updates from the Parent Shell
+// Inside home.html script
+const batteryEl = document.getElementById('battery-val');
 
-        // 2. Connect to GATT Server
-        const server = await device.gatt.connect();
-        statusEl.textContent = "Connected";
-        statusEl.style.color = "#00FF00"; // Green for connected
+window.addEventListener("message", (event) => {
+    // 1. Handle Connection Status
+    if (event.data.type === "STATUS") {
+        statusEl.textContent = event.data.value;
+        statusEl.style.color = "#4df153";
+        statusEl.classList.add("online");
+    }
 
-        // 3. Get the Battery Service
-        const service = await server.getPrimaryService(BATTERY_SERVICE_UUID);
-        const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
-
-        // 4. Start Notifications for real-time polling
-        await characteristic.startNotifications();
-
-        characteristic.addEventListener('characteristicvaluechanged', (event) => {
-            const decoder = new TextDecoder('utf-8');
-            const rawData = decoder.decode(event.target.value);
-
-            try {
-                const data = JSON.parse(rawData);
-                if (data.type === "BATTERY") {
-                    batteryEl.textContent = data.battery_pct + "%";
-                }
-            } catch (e) {
-                console.error("JSON Parse Error:", e, "Raw data:", rawData);
-            }
-        });
-
-        // Initial Read
-        const initialValue = await characteristic.readValue();
-        const decodedInitial = new TextDecoder('utf-8').decode(initialValue);
-        const initialData = JSON.parse(decodedInitial);
-        batteryEl.textContent = initialData.battery_pct + "%";
-
-        // Handle Disconnection
-        device.addEventListener('gattserverdisconnected', () => {
-            statusEl.textContent = "Disconnected";
-            statusEl.classList.remove("online"); // Returns to default white/red
-            batteryEl.textContent = "--";
-        });
-
-    } catch (error) {
-        console.error("BLE Error:", error);
-        statusEl.textContent = "Error";
+    // 2. Handle Battery Updates (Restored Functionality)
+    if (event.data.type === "BATTERY_UPDATE") {
+        batteryEl.textContent = event.data.value;
     }
 });
 </script>

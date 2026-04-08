@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from authlib.integrations.flask_client import OAuth
 import os
+import format_text
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
@@ -159,19 +160,19 @@ def logout():
 # =========================
 @app.route('/home')
 def home():
-    username = session.get('user')
-    if not username:
+    if not session.get('user'):
         return redirect(url_for('index'))
 
-    user_data = users.get(username, {})
-    email = user_data.get('email', username)
+    # If the user is navigating directly to the page, give them the shell
+    if request.headers.get('Sec-Fetch-Dest') != 'iframe':
+        return render_template('parent_page.html')
 
-    device_info = {"battery": "--", "status": "Disconnected"}
-
+    # Otherwise, return the original home.html
+    user_data = users.get(session.get('user'), {})
     return render_template('home.html',
-                            username=username,
-                            email=email,
-                            device=device_info)
+                           username=session.get('user'),
+                           email=user_data.get('email'),
+                           device={"battery": "--", "status": "Disconnected"})
 
 @app.route('/edit-emergency-contacts', methods=['GET', 'POST'])
 def edit_emergency_contacts():
@@ -246,7 +247,17 @@ def edit_profile():
 
     return render_template('edit_profile.html', username=username, user=user)
 
-# OAUTH CALLBACKS (Google/MS) remain as you had them...
+@app.route('/process-fall', methods=['POST'])
+def process_fall():
+    data = request.json
+    # Pass the JS data into your moved script
+    cap_xml = format_text.get_cap_xml_for_current_alert(data['mcu'], data['location'])
+
+    print("Generated CAP XML:")
+    print(cap_xml)
+
+    # Next step: Send cap_xml to your lambda_function.py or emergency service
+    return {"status": "processed"}
 
 if __name__ == "__main__":
     app.run(debug=True)

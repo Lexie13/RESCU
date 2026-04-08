@@ -14,13 +14,23 @@ table_users = dynamodb.Table("users")
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
 
-def put_new_user(username, password, first_name, last_name, phone, email, role="primary_user", emergency_contacts=None):
+
+def put_new_user(
+    username,
+    password,
+    first_name,
+    last_name,
+    phone,
+    email,
+    role="primary_user",
+    emergency_contacts=None,
+):
     """
     Creates entries in both 'logins' and 'users' tables linked by a common user_id.
     """
     if emergency_contacts is None:
         emergency_contacts = []
-        
+
     user_id = str(uuid.uuid4())
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt)
@@ -39,15 +49,18 @@ def put_new_user(username, password, first_name, last_name, phone, email, role="
         "last_name": last_name,
         "phone_number": phone,
         "email": email,
-        "emergency_contacts": emergency_contacts
+        "emergency_contacts": emergency_contacts,
     }
 
     try:
-        table_logins.put_item(Item=login_item, ConditionExpression="attribute_not_exists(user_id)")
+        table_logins.put_item(
+            Item=login_item, ConditionExpression="attribute_not_exists(user_id)"
+        )
         table_users.put_item(Item=user_profile_item)
         return {"success": True, "user_id": user_id}
     except ClientError as e:
         return {"success": False, "error": str(e)}
+
 
 def authenticate_user(username, password):
     """
@@ -86,16 +99,17 @@ def authenticate_user(username, password):
             )
 
             return {
-                "success": True, 
-                "token": token, 
+                "success": True,
+                "token": token,
                 "user_id": user_id,
-                "profile": profile # Includes first_name, last_name, phone, emergency_contacts, etc.
+                "profile": profile,  # Includes first_name, last_name, phone, emergency_contacts, etc.
             }
 
         return {"success": False, "error": "Incorrect username or password"}
     except Exception as e:
         print(f"Auth error: {str(e)}")
         return {"success": False, "error": "Internal authentication error"}
+
 
 def delete_user(user_id):
     """
@@ -104,14 +118,15 @@ def delete_user(user_id):
     try:
         # Delete from security table
         table_logins.delete_item(Key={"user_id": user_id})
-        
+
         # Delete from profile table
         table_users.delete_item(Key={"user_id": user_id})
-        
+
         return {"success": True}
     except ClientError as e:
         print(f"Delete error: {e.response['Error']['Message']}")
         return {"success": False, "error": str(e)}
+
 
 def update_user(user_id, emergency_contacts=None, profile_updates=None):
     """
@@ -123,22 +138,22 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
             update_expr_parts = []
             expr_attr_values = {}
             expr_attr_names = {}
-            
+
             if emergency_contacts is not None:
                 update_expr_parts.append("emergency_contacts = :ec")
                 expr_attr_values[":ec"] = emergency_contacts
-                
+
             if profile_updates is not None:
                 # Map frontend 'phone' to DynamoDB 'phone_number'
                 for field in ["first_name", "last_name", "phone", "email"]:
                     db_field = "phone_number" if field == "phone" else field
-                    
+
                     if field in profile_updates:
                         # Use ExpressionAttributeNames to avoid reserved keyword conflicts
                         expr_attr_names[f"#{db_field}"] = db_field
                         update_expr_parts.append(f"#{db_field} = :{db_field}")
                         expr_attr_values[f":{db_field}"] = profile_updates[field]
-                        
+
             if update_expr_parts:
                 update_kwargs = {
                     "Key": {"user_id": user_id},
@@ -147,22 +162,24 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
                 }
                 if expr_attr_names:
                     update_kwargs["ExpressionAttributeNames"] = expr_attr_names
-                    
+
                 table_users.update_item(**update_kwargs)
 
         # 2. Update Password (logins table) if provided
         if profile_updates and "password" in profile_updates:
             new_password = profile_updates["password"]
             salt = bcrypt.gensalt()
-            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode("utf-8")
-            
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode(
+                "utf-8"
+            )
+
             table_logins.update_item(
                 Key={"user_id": user_id},
                 UpdateExpression="SET #pw = :pw",
                 ExpressionAttributeNames={"#pw": "password"},
-                ExpressionAttributeValues={":pw": hashed_password}
+                ExpressionAttributeValues={":pw": hashed_password},
             )
-            
+
         return {"success": True}
 
     except ClientError as e:
@@ -181,7 +198,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             KeyConditionExpression=Key("username").eq(email),
         )
         items = response.get("Items", [])
-        
+
         if items:
             # User exists
             user_login = items[0]
@@ -190,19 +207,19 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             # User does not exist, create them with a dummy secure password
             random_password = str(uuid.uuid4())
             create_result = put_new_user(
-                username=email, 
-                password=random_password, 
-                first_name=first_name or "", 
-                last_name=last_name or "", 
-                phone="", 
-                email=email, 
-                role="primary_user", 
-                emergency_contacts=[]
+                username=email,
+                password=random_password,
+                first_name=first_name or "",
+                last_name=last_name or "",
+                phone="",
+                email=email,
+                role="primary_user",
+                emergency_contacts=[],
             )
-            
+
             if not create_result.get("success"):
                 return {"success": False, "error": "Failed to create OAuth user"}
-                
+
             user_id = create_result["user_id"]
             user_login = {"username": email, "role": "primary_user"}
 
@@ -222,12 +239,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             algorithm="HS256",
         )
 
-        return {
-            "success": True, 
-            "token": token, 
-            "user_id": user_id,
-            "profile": profile
-        }
+        return {"success": True, "token": token, "user_id": user_id, "profile": profile}
 
     except Exception as e:
         print(f"OAuth error: {str(e)}")

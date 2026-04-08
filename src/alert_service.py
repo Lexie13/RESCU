@@ -5,7 +5,8 @@ import uuid
 import datetime
 from botocore.exceptions import ClientError
 
-dynamodb = boto3.resource("dynamodb")
+region = os.environ.get("AWS_REGION", "us-east-1")
+dynamodb = boto3.resource("dynamodb", region_name=region)
 table_users = dynamodb.Table("users")
 table_alerts = dynamodb.Table("alerts")
 sns_client = boto3.client("sns")

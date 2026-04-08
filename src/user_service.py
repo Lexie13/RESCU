@@ -8,7 +8,8 @@ from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 
 # Configuration
-dynamodb = boto3.resource("dynamodb")
+region = os.environ.get("AWS_REGION", "us-east-1")
+dynamodb = boto3.resource("dynamodb", region_name=region)
 table_logins = dynamodb.Table("logins")
 table_users = dynamodb.Table("users")
 

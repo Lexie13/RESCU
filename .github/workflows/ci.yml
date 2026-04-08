@@ -48,5 +48,6 @@ jobs:
         env:
           # Tells Python to look inside the src/ folder for your import statements
           PYTHONPATH: src
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           pytest

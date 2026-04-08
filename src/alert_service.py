@@ -105,7 +105,7 @@ def trigger_emergency_email_loop(
             message = (
                 f"Hello {contact_name},\n\n"
                 f"This is an automated emergency alert from RESCU. "
-                f"A fall has been detected for the user you are "\n                f"monitoring.\\n\\n"
+                f"A fall has been detected for the user you are monitoring.\\n\\n"
                 f"Last Known Location: {location_data}\n\n"
                 f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE "
                 f"HANDLING THIS:\n{ack_link}\n\n"

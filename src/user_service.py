@@ -26,7 +26,7 @@ def put_new_user(
     emergency_contacts=None,
 ):
     """
-    Creates entries in both 'logins' and 'users' tables linked by 
+    Creates entries in both 'logins' and 'users' tables linked by
     a common user_id.
     """
     if emergency_contacts is None:
@@ -55,8 +55,7 @@ def put_new_user(
 
     try:
         table_logins.put_item(
-            Item=login_item,
-            ConditionExpression="attribute_not_exists(user_id)"
+            Item=login_item, ConditionExpression="attribute_not_exists(user_id)"
         )
         table_users.put_item(Item=user_profile_item)
         return {"success": True, "user_id": user_id}
@@ -66,7 +65,7 @@ def put_new_user(
 
 def authenticate_user(username, password):
     """
-    Checks credentials and retrieves the linked profile data from 
+    Checks credentials and retrieves the linked profile data from
     the 'users' table.
     """
     try:
@@ -78,19 +77,14 @@ def authenticate_user(username, password):
         items = response.get("Items", [])
 
         if not items:
-            return {
-                "success": False, 
-                "error": "Incorrect username or password"
-            }
+            return {"success": False, "error": "Incorrect username or password"}
 
         user_login = items[0]
         user_id = user_login["user_id"]
         stored_hash = user_login["password"].encode("utf-8")
 
         # 2. Verify password
-        if bcrypt.checkpw(
-            password.encode("utf-8"), stored_hash
-        ):
+        if bcrypt.checkpw(password.encode("utf-8"), stored_hash):
             # 3. Retrieve profile data from the 'users' table
             profile_response = table_users.get_item(Key={"user_id": user_id})
             profile = profile_response.get("Item", {})
@@ -100,10 +94,7 @@ def authenticate_user(username, password):
                     "user_id": user_id,
                     "username": user_login["username"],
                     "role": user_login.get("role", "primary_user"),
-                    "exp": (
-                        datetime.datetime.utcnow() +
-                        datetime.timedelta(hours=24)
-                    ),
+                    "exp": (datetime.datetime.utcnow() + datetime.timedelta(hours=24)),
                 },
                 SECRET_KEY,
                 algorithm="HS256",
@@ -165,12 +156,8 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
                         # Use ExpressionAttributeNames to avoid reserved
                         # keyword conflicts
                         expr_attr_names[f"#{db_field}"] = db_field
-                        update_expr_parts.append(
-                            f"#{db_field} = :{db_field}"
-                        )
-                        expr_attr_values[f":{db_field}"] = (
-                            profile_updates[field]
-                        )
+                        update_expr_parts.append(f"#{db_field} = :{db_field}")
+                        expr_attr_values[f":{db_field}"] = profile_updates[field]
 
             if update_expr_parts:
                 update_kwargs = {
@@ -187,9 +174,9 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
         if profile_updates and "password" in profile_updates:
             new_password = profile_updates["password"]
             salt = bcrypt.gensalt()
-            hashed_password = bcrypt.hashpw(
-                new_password.encode("utf-8"), salt
-            ).decode("utf-8")
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode(
+                "utf-8"
+            )
 
             table_logins.update_item(
                 Key={"user_id": user_id},
@@ -222,7 +209,8 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             user_login = items[0]
             user_id = user_login["user_id"]
         else:
-            # User does not exist, create them with a dummy secure password
+            # User does not exist, create them with a 
+            # dummy secure password
             random_password = str(uuid.uuid4())
             create_result = put_new_user(
                 username=email,
@@ -236,10 +224,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             )
 
             if not create_result.get("success"):
-                return {
-                    "success": False,
-                    "error": "Failed to create OAuth user"
-                }
+                return {"success": False, "error": "Failed to create OAuth user"}
 
             user_id = create_result["user_id"]
             user_login = {"username": email, "role": "primary_user"}
@@ -254,21 +239,13 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
                 "user_id": user_id,
                 "username": user_login["username"],
                 "role": user_login.get("role", "primary_user"),
-                "exp": (
-                    datetime.datetime.utcnow() +
-                    datetime.timedelta(hours=24)
-                ),
+                "exp": (datetime.datetime.utcnow() + datetime.timedelta(hours=24)),
             },
             SECRET_KEY,
             algorithm="HS256",
         )
 
-        return {
-            "success": True,
-            "token": token,
-            "user_id": user_id,
-            "profile": profile
-        }
+        return {"success": True, "token": token, "user_id": user_id, "profile": profile}
 
     except Exception as e:
         print(f"OAuth error: {str(e)}")

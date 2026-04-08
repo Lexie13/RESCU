@@ -45,9 +45,7 @@ def lambda_handler(event, context):
 
             emergency_contacts = body.get("emergency_contacts", [])
 
-            if not all([
-                username, password, first_name, last_name, phone, email
-            ]):
+            if not all([username, password, first_name, last_name, phone, email]):
                 return {
                     "statusCode": 400,
                     "body": json.dumps("Missing required registration fields"),
@@ -179,16 +177,11 @@ def lambda_handler(event, context):
                     "body": html_body,
                 }
             else:
-                return {
-                    "statusCode": 500,
-                    "body": "Failed to acknowledge alert."
-                }
+                return {"statusCode": 500, "body": "Failed to acknowledge alert."}
 
     except Exception as e:
         print(f"Handler Error: {str(e)}")
         return {
             "statusCode": 500,
-            "body": json.dumps(
-                f"Internal Server Error: {str(e)}"
-            ),
+            "body": json.dumps(f"Internal Server Error: {str(e)}"),
         }

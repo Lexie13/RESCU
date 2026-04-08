@@ -11,27 +11,20 @@ table_alerts = dynamodb.Table("alerts")
 sns_client = boto3.client("sns")
 
 SNS_TOPIC_ARN = os.environ.get(
-    "EMERGENCY_SNS_TOPIC_ARN",
-    "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
+    "EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
 )
 API_GATEWAY_URL = os.environ.get(
-    "API_GATEWAY_URL",
-    "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
+    "API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
 )
 
 
-def trigger_emergency_email_loop(
-    user_id, location_data="Location Unavailable"
-):
+def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
         user_profile = response.get("Item")
 
         if not user_profile:
-            return {
-                "success": False,
-                "error": "User profile not found in database."
-            }
+            return {"success": False, "error": "User profile not found in database."}
 
         contacts = user_profile.get("emergency_contacts", [])
         if not contacts:
@@ -42,21 +35,15 @@ def trigger_emergency_email_loop(
 
         parsed_contacts = []
         for item in contacts:
-            contact_map = (
-                item.get("M", item) if isinstance(item, dict) else item
-            )
+            contact_map = item.get("M", item) if isinstance(item, dict) else item
 
             raw_email = contact_map.get("email")
             contact_email = (
-                raw_email.get("S")
-                if isinstance(raw_email, dict)
-                else raw_email
+                raw_email.get("S") if isinstance(raw_email, dict) else raw_email
             )
 
             raw_name = contact_map.get("name")
-            contact_name = (
-                raw_name.get("S") if isinstance(raw_name, dict) else raw_name
-            )
+            contact_name = raw_name.get("S") if isinstance(raw_name, dict) else raw_name
 
             raw_priority = contact_map.get("priority", 99)
             priority = (
@@ -67,11 +54,7 @@ def trigger_emergency_email_loop(
 
             if contact_email:
                 parsed_contacts.append(
-                    {
-                        "name": contact_name,
-                        "email": contact_email,
-                        "priority": priority
-                    }
+                    {"name": contact_name, "email": contact_email, "priority": priority}
                 )
 
         parsed_contacts.sort(key=lambda x: x.get("priority", 99))
@@ -105,7 +88,8 @@ def trigger_emergency_email_loop(
             message = (
                 f"Hello {contact_name},\n\n"
                 f"This is an automated emergency alert from RESCU. "
-                f"A fall has been detected for the user you are monitoring.\\n\\n"
+                f"A fall has been detected for the user you are "
+                f"monitoring.\\n\\n"
                 f"Last Known Location: {location_data}\n\n"
                 f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE "
                 f"HANDLING THIS:\n{ack_link}\n\n"
@@ -127,8 +111,7 @@ def trigger_emergency_email_loop(
                 )
                 notified_contacts.append(contact_email)
                 print(
-                    f"Alert sent to {contact_email}. "
-                    f"Waiting for acknowledgment..."
+                    f"Alert sent to {contact_email}. " f"Waiting for acknowledgment..."
                 )
 
                 # 3. POLL THE DATABASE FOR ACKNOWLEDGMENT
@@ -143,10 +126,7 @@ def trigger_emergency_email_loop(
                     alert_record = table_alerts.get_item(
                         Key={"alert_id": alert_id}
                     ).get("Item")
-                    if (
-                        alert_record and
-                        alert_record.get("status") == "ACKNOWLEDGED"
-                    ):
+                    if alert_record and alert_record.get("status") == "ACKNOWLEDGED":
                         is_acknowledged = True
                         break  # Break the polling loop
 
@@ -167,9 +147,7 @@ def trigger_emergency_email_loop(
         else:
             return {
                 "success": False,
-                "error": (
-                    "Loop finished, but no contact acknowledged the alert."
-                ),
+                "error": ("Loop finished, but no contact acknowledged the alert."),
             }
 
     except ClientError as e:
@@ -184,8 +162,7 @@ def acknowledge_alert(alert_id, contact_email):
         table_alerts.update_item(
             Key={"alert_id": alert_id},
             UpdateExpression=(
-                "SET #st = :st, acknowledged_by = :ack, "
-                "acknowledged_at = :time"
+                "SET #st = :st, acknowledged_by = :ack, " "acknowledged_at = :time"
             ),
             ExpressionAttributeNames={"#st": "status"},
             ExpressionAttributeValues={

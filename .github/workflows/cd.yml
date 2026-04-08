@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - ci-cd-pipeline
+      - store-login
 
 permissions:
   id-token: write
@@ -25,17 +26,20 @@ jobs:
 
     - name: Create Lambda deployment package
       run: |
-        # 1. Create a clean, temporary directory
         mkdir package
         
-        # 2. Install dependencies directly into the package folder
-        if [ -f requirements.txt ]; then pip install -r requirements.txt -t ./package; fi
+        # Install dependencies using specific platform flags for AWS Lambda compatibility
+        if [ -f requirements.txt ]; then 
+          pip install \
+            --platform manylinux2014_x86_64 \
+            --target ./package \
+            --implementation cp \
+            --python-version 3.10 \
+            --only-binary=:all: \
+            -r requirements.txt
+        fi
         
-        # 3. Copy only the application source code into the package folder
-        # Make sure your lambda_function.py is inside a folder named 'src'
         cp -r src/* ./package/
-        
-        # 4. Zip the contents of the package folder securely
         cd package
         zip -r ../function.zip .
 
@@ -70,3 +74,21 @@ jobs:
             --timeout 15 \
             --memory-size 128
         fi
+        
+    - name: Deploy Frontend to Elastic Beanstalk
+      run: |
+        cd frontend
+        zip -r ../beanstalk-deploy.zip .
+        cd ..
+
+        aws s3 cp beanstalk-deploy.zip s3://rescu-frontend/deploy-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.zip
+
+        aws elasticbeanstalk create-application-version \
+          --application-name rescu-frontend \
+          --version-label ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }} \
+          --source-bundle S3Bucket="rescu-frontend",S3Key="deploy-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.zip"
+
+        aws elasticbeanstalk update-environment \
+          --application-name rescu-frontend \
+          --environment-name Rescu-frontend-env \
+          --version-label ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}

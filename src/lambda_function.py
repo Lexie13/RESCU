@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
 from user_service import put_new_user, authenticate_user, delete_user, update_user, authenticate_oauth_user
-from alert_service import trigger_emergency_email_loop
+from alert_service import trigger_emergency_email_loop, acknowledge_alert
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -97,6 +97,33 @@ def lambda_handler(event, context):
 
             result = delete_user(user_id)
             return {"statusCode": 200 if result["success"] else 500, "body": json.dumps(result, cls=DecimalEncoder)}
+        
+        # ROUTE: Acknowledge Alert (GET /alert/acknowledge)
+        elif method == "GET" and "alert/acknowledge" in path.lower():
+            query_params = event.get("queryStringParameters") or {}
+            alert_id = query_params.get("alert_id")
+            contact_email = query_params.get("email", "Unknown")
+
+            if not alert_id:
+                return {"statusCode": 400, "body": "Missing alert_id"}
+
+            result = acknowledge_alert(alert_id, contact_email)
+            
+            if result.get("success"):
+                html_body = f"""
+                <html><body>
+                <h2 style="color: green;">Alert Acknowledged</h2>
+                <p>Thank you. The RESCU system has recorded that you are handling this emergency.</p>
+                <p>The notification loop has been stopped.</p>
+                </body></html>
+                """
+                return {
+                    "statusCode": 200, 
+                    "headers": {"Content-Type": "text/html"}, 
+                    "body": html_body
+                }
+            else:
+                return {"statusCode": 500, "body": "Failed to acknowledge alert."}
 
     except Exception as e:
         print(f"Handler Error: {str(e)}")

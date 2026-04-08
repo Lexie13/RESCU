@@ -45,7 +45,9 @@ def lambda_handler(event, context):
 
             emergency_contacts = body.get("emergency_contacts", [])
 
-            if not all([username, password, first_name, last_name, phone, email]):
+            if not all([
+                username, password, first_name, last_name, phone, email
+            ]):
                 return {
                     "statusCode": 400,
                     "body": json.dumps("Missing required registration fields"),
@@ -163,10 +165,11 @@ def lambda_handler(event, context):
             result = acknowledge_alert(alert_id, contact_email)
 
             if result.get("success"):
-                html_body = f"""
+                html_body = """
                 <html><body>
                 <h2 style="color: green;">Alert Acknowledged</h2>
-                <p>Thank you. The RESCU system has recorded that you are handling this emergency.</p>
+                <p>Thank you. The RESCU system has recorded that you are
+                handling this emergency.</p>
                 <p>The notification loop has been stopped.</p>
                 </body></html>
                 """
@@ -176,11 +179,16 @@ def lambda_handler(event, context):
                     "body": html_body,
                 }
             else:
-                return {"statusCode": 500, "body": "Failed to acknowledge alert."}
+                return {
+                    "statusCode": 500,
+                    "body": "Failed to acknowledge alert."
+                }
 
     except Exception as e:
         print(f"Handler Error: {str(e)}")
         return {
             "statusCode": 500,
-            "body": json.dumps(f"Internal Server Error: {str(e)}"),
+            "body": json.dumps(
+                f"Internal Server Error: {str(e)}"
+            ),
         }

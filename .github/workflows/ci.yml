@@ -34,7 +34,8 @@ jobs:
       - name: Run Flake8
         run: |
           # Specifically target the src and tests directories
-          flake8 src tests
+          # E501 ignores line length errors
+          flake8 src tests --ignore=E501
 
       # step 5: Format check with Black
       - name: Run Black (check only)

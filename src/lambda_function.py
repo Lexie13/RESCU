@@ -179,6 +179,14 @@ def lambda_handler(event, context):
             else:
                 return {"statusCode": 500, "body": "Failed to acknowledge alert."}
 
+        # DEFAULT ROUTE: Handle unmatched paths/methods
+        return {
+            "statusCode": 404,
+            "body": json.dumps(
+                {"error": "Resource not found", "path": path, "method": method}
+            ),
+        }
+
     except Exception as e:
         print(f"Handler Error: {str(e)}")
         return {

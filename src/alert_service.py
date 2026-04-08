@@ -11,20 +11,22 @@ table_alerts = dynamodb.Table("alerts")
 sns_client = boto3.client("sns")
 
 SNS_TOPIC_ARN = os.environ.get(
-    "EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
+    "EMERGENCY_SNS_TOPIC_ARN", 
+    "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
 )
 API_GATEWAY_URL = os.environ.get(
     "API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
 )
 
 
-def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
+def trigger_emergency_email_loop(user_id, location_data="No Location"):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
         user_profile = response.get("Item")
 
         if not user_profile:
-            return {"success": False, "error": "User profile not found in database."}
+            return {"success": False, 
+                    "error": "User profile not found in database."}
 
         contacts = user_profile.get("emergency_contacts", [])
         if not contacts:
@@ -35,15 +37,20 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
 
         parsed_contacts = []
         for item in contacts:
-            contact_map = item.get("M", item) if isinstance(item, dict) else item
+            contact_map = (
+                item.get("M", item) if isinstance(item, dict) else item
+            )
 
             raw_email = contact_map.get("email")
             contact_email = (
-                raw_email.get("S") if isinstance(raw_email, dict) else raw_email
+                raw_email.get("S") if 
+                isinstance(raw_email, dict) else raw_email
             )
 
             raw_name = contact_map.get("name")
-            contact_name = raw_name.get("S") if isinstance(raw_name, dict) else raw_name
+            contact_name = (
+                raw_name.get("S") if isinstance(raw_name, dict) else raw_name
+            )
 
             raw_priority = contact_map.get("priority", 99)
             priority = (
@@ -54,7 +61,8 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
 
             if contact_email:
                 parsed_contacts.append(
-                    {"name": contact_name, "email": contact_email, "priority": priority}
+                    {"name": contact_name, "email": contact_email, 
+                     "priority": priority}
                 )
 
         parsed_contacts.sort(key=lambda x: x.get("priority", 99))
@@ -111,7 +119,8 @@ def trigger_emergency_email_loop(user_id, location_data="Location Unavailable"):
                 )
                 notified_contacts.append(contact_email)
                 print(
-                    f"Alert sent to {contact_email}. " f"Waiting for acknowledgment..."
+                    f"Alert sent to {contact_email}. " 
+                    f"Waiting for acknowledgment..."
                 )
 
                 # 3. POLL THE DATABASE FOR ACKNOWLEDGMENT

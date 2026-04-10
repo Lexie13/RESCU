@@ -48,7 +48,7 @@ body, html {
     margin-top: 15px;
     max-width: 800px;
     line-height: 1.4;
-    white-space: nowrap; /* Keeps branding on one line */
+    white-space: nowrap; /* Keeps branding text on one line */
 }
 
 .form-section {
@@ -126,7 +126,7 @@ button:active {
 }
 
 /* =========================================
-   4. Role Slider Styling (Signup Only)
+   4. Role Slider Styling (Signup Page)
    ========================================= */
 .role-slider-container {
     display: flex;
@@ -146,7 +146,7 @@ button:active {
 }
 
 .role-slider input[type="radio"] {
-    display: none;
+    display: none; /* Hide the standard radio dots */
 }
 
 .slider-label {
@@ -161,6 +161,7 @@ button:active {
     transition: color 0.3s ease;
 }
 
+/* The animated sliding background pill */
 .slider-tab {
     position: absolute;
     top: 4px;
@@ -174,16 +175,23 @@ button:active {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-#owner:checked ~ .slider-tab { transform: translateX(0); }
-#caregiver:checked ~ .slider-tab { transform: translateX(100%); }
+/* Logic for the slider movement */
+#owner:checked ~ .slider-tab {
+    transform: translateX(0);
+}
 
+#caregiver:checked ~ .slider-tab {
+    transform: translateX(100%);
+}
+
+/* Change label color to white when the tab is underneath it */
 #owner:checked ~ label[for="owner"],
 #caregiver:checked ~ label[for="caregiver"] {
     color: white;
 }
 
 /* =========================================
-   5. Persistent "Go Back" / Links
+   5. Persistent Navigation Links
    ========================================= */
 .login-link, .signup-text {
     margin-top: 30px;
@@ -191,7 +199,7 @@ button:active {
     font-size: 15px;
 }
 
-/* Forces the link to stay blue even after being clicked */
+/* Prevents link from turning purple/grey after clicking */
 .login-link a, 
 .login-link a:visited, 
 .login-link a:active {
@@ -210,7 +218,9 @@ button:active {
     text-decoration: underline;
 }
 
-/* Error Messages */
+/* =========================================
+   6. Error Messaging
+   ========================================= */
 .error {
     color: #d9534f;
     font-size: 14px;
@@ -222,15 +232,34 @@ button:active {
     display: none;
 }
 
-.error.show { display: block; }
+.error.show {
+    display: block;
+}
 
 /* =========================================
-   6. Responsiveness
+   7. Responsiveness (Mobile Tweaks)
    ========================================= */
 @media (max-width: 850px) {
-    .page-wrapper { flex-direction: column; }
-    .hero-section { flex: 0.4; padding: 30px 20px; }
-    .hero-section h1 { font-size: 40px; }
-    .hero-section p { white-space: normal; font-size: 16px; }
-    .form-section { padding-top: 40px; }
+    .page-wrapper {
+        flex-direction: column;
+    }
+    
+    .hero-section {
+        flex: 0.4;
+        padding: 30px 20px;
+    }
+
+    .hero-section h1 {
+        font-size: 40px;
+    }
+
+    .hero-section p {
+        white-space: normal; /* Wrap text on mobile to avoid overflow */
+        font-size: 16px;
+        margin-top: 5px;
+    }
+
+    .form-section {
+        padding-top: 40px;
+    }
 }

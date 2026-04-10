@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R.E.S.C.U. Emergency Contacts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .contact-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .contact-pair {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+        .contact-pair input {
+            margin: 0;
+            flex: 1;
+        }
+        .contact-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background: #1E90FF;
+            color: white;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .contacts-note {
+            color: #999;
+            font-size: 13px;
+            margin: -6px 0 14px;
+        }
+        .form-section {
+            overflow-y: auto;
+        }
+        /* Go Back — always blue, never grey */
+        .login-link a,
+        .login-link a:visited,
+        .login-link a:active,
+        .login-link a:hover {
+            color: #1E90FF !important;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="hero-section">
+            <h1>R.E.S.C.U.</h1>
+            <p>Almost there — add your emergency contacts.</p>
+        </div>
+
+        <div class="form-section">
+            <div class="form-container">
+                <form action="{{ url_for('signup_emergency') }}" method="POST">
+                    <h2>Emergency Contacts</h2>
+                    <p class="subtext">Who should we notify in an emergency?</p>
+                    <p class="contacts-note">Add up to 5 contacts. At least one is recommended.</p>
+
+                    {% for i in range(1, 6) %}
+                    <div class="contact-row">
+                        <div class="contact-number">{{ i }}</div>
+                        <div class="contact-pair">
+                            <input type="text"  name="contact_name_{{ i }}"  placeholder="Full Name">
+                            <input type="email" name="contact_email_{{ i }}" placeholder="Email Address">
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if error %}
+                    <div class="error show">{{ error }}</div>
+                    {% endif %}
+
+                    <button type="submit" style="margin-top: 10px;">Save &amp; Continue →</button>
+                </form>
+
+                <p class="login-link">
+                    <a href="{{ url_for('signup_page') }}">← Go Back</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

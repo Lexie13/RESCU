@@ -1,33 +1,40 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R.E.S.C.U. Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>R.E.S.C.U.</h1>
-
-    <div class="form-container">
-        <!-- Traditional Login Form -->
-        <form action="/login" method="post" class="horizontal-form">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-        </form>
-
-        <!-- Optional OR separator -->
-        <p class="or-text">OR</p>
-
-        <!-- OAuth Login Buttons -->
-        <div class="oauth-buttons">
-            <a href="{{ url_for('login_google') }}"><button type="button" class="google-btn">Login with Google</button></a>
-            <a href="{{ url_for('login_microsoft') }}"><button type="button" class="microsoft-btn">Login with Microsoft</button></a>
+    <div class="page-wrapper">
+        <div class="hero-section">
+            <h1>R.E.S.C.U.</h1>
+            <p>Access the unified emergency response dashboard.</p>
         </div>
 
-        <!-- Signup link -->
-        <p class="signup-text">Don't have an account? <a href="/signup">Sign up</a></p>
+        <div class="form-section">
+            <div class="form-container">
+                <form action="/login" method="post">
+                    <h2>Welcome Back</h2>
+                    <p class="subtext">Please enter your details to sign in.</p>
+                    
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    
+                    {% if error %}
+                    <div class="error show">{{ error }}</div>
+                    {% endif %}
+                    
+                    <button type="submit">Login</button>
+                </form>
+
+                <p class="signup-text">
+                    Don't have an account? <a href="/signup">Sign up</a>
+                </p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

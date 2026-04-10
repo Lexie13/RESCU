@@ -12,41 +12,29 @@
 
     <form action="{{ url_for('signup') }}" method="POST" onsubmit="return validatePasswords()">
 
-        <!-- Role Selection Slider -->
         <div class="role-toggle-wrapper">
             <div class="role-toggle" id="roleToggle" onclick="toggleRole()">
                 <div class="toggle-slider" id="toggleSlider"></div>
-                <span class="toggle-label left" id="labelOwner">Owner</span>
-                <span class="toggle-label right" id="labelCaregiver">Caregiver</span>
+                <span class="toggle-label active" id="labelOwner">Owner</span>
+                <span class="toggle-label" id="labelCaregiver">Caregiver</span>
             </div>
         </div>
         <input type="hidden" name="role" id="roleInput" value="owner">
 
-        <!-- First Name -->
         <input type="text" name="first_name" placeholder="First Name" required>
 
-        <!-- Last Name -->
         <input type="text" name="last_name" placeholder="Last Name" required>
 
-        <!-- Phone Number -->
-        <input type="tel" name="phone" placeholder="Phone Number" required>
-
-        <!-- Email -->
         <input type="email" name="email" placeholder="Email Address" required>
 
-        <!-- Username -->
         <input type="text" name="username" placeholder="Username" required>
 
-        <!-- Password -->
         <input type="password" id="password" name="password" placeholder="Password" required>
 
-        <!-- Confirm Password -->
         <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
 
-        <!-- Error message -->
         <div class="error" id="error-message">Passwords do not match!</div>
 
-        <!-- Sign Up Button -->
         <button type="submit">Sign Up</button>
     </form>
 
@@ -77,9 +65,6 @@
         }
         roleInput.value = currentRole;
     }
-
-    // Set initial active state
-    document.getElementById('labelOwner').classList.add('active');
 
     function validatePasswords() {
         const password = document.getElementById("password").value;

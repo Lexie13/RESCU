@@ -3,7 +3,9 @@ from authlib.integrations.flask_client import OAuth
 import os
 import requests
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_folder='frontend/static', 
+            template_folder='frontend/templates')
 application = app
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 API_GATEWAY_URL = os.environ.get(

@@ -1,5 +1,5 @@
 /* =========================================
-   1. General Layout (Matching your style)
+   1. General Layout
    ========================================= */
 body {
     height: 100vh;
@@ -37,7 +37,7 @@ body {
 
 .hero-section p {
     font-size: 20px;
-    white-space: nowrap; /* Forced to one line per your request */
+    white-space: nowrap; /* Forces branding onto one line */
 }
 
 .form-section {
@@ -55,7 +55,7 @@ body {
 }
 
 /* =========================================
-   2. Role Slider (The "Owner/Caregiver" Toggle)
+   2. Role Slider (Owner/Caregiver Toggle)
    ========================================= */
 .role-slider-container {
     display: flex;
@@ -103,6 +103,7 @@ body {
     z-index: 1;
 }
 
+/* Logic for the slider movement */
 #owner:checked ~ .slider-tab { transform: translateX(0); }
 #caregiver:checked ~ .slider-tab { transform: translateX(100%); }
 
@@ -112,7 +113,7 @@ body {
 }
 
 /* =========================================
-   3. Inputs & Buttons (Matching Original Style)
+   3. Inputs & Buttons
    ========================================= */
 input[type="text"],
 input[type="password"],
@@ -172,7 +173,9 @@ button:hover {
 }
 .error.show { display: block; }
 
-/* Responsive */
+/* =========================================
+   5. Responsiveness
+   ========================================= */
 @media (max-width: 850px) {
     .page-wrapper { flex-direction: column; }
     .hero-section { flex: 0.5; padding: 20px; }

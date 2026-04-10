@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session
 import os
 import requests
 
@@ -25,21 +25,17 @@ def signup_page():
 
 @app.route("/signup", methods=["POST"])
 def signup():
-    # 1. Temporarily store page 1 data in the session
     session["temp_signup_data"] = {
-        "username": request.form.get("username"),
-        "password": request.form.get("password"),
+        "username":   request.form.get("username"),
+        "password":   request.form.get("password"),
         "first_name": request.form.get("first_name"),
-        "last_name": request.form.get("last_name"),
-        "phone": request.form.get("phone"),
-        "email": request.form.get("email"),
-        "role": request.form.get("role", "owner"),
+        "last_name":  request.form.get("last_name"),
+        "phone":      request.form.get("phone"),
+        "email":      request.form.get("email"),
+        "role":       request.form.get("role", "owner"),
     }
 
-    if (
-        not session["temp_signup_data"]["username"]
-        or not session["temp_signup_data"]["password"]
-    ):
+    if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
         return "Please enter both username and password."
 
     return redirect(url_for("signup_emergency"))
@@ -47,20 +43,17 @@ def signup():
 
 @app.route("/signup-emergency", methods=["GET", "POST"])
 def signup_emergency():
-    # Ensure they came from the first signup page
     if "temp_signup_data" not in session:
         return redirect(url_for("signup_page"))
 
     if request.method == "POST":
-        # 2. Collect contacts from page 2
         contacts_list = []
         for i in range(1, 6):
-            name = request.form.get(f"contact_name_{i}")
+            name  = request.form.get(f"contact_name_{i}")
             email = request.form.get(f"contact_email_{i}")
             if name and email:
                 contacts_list.append({"name": name, "email": email, "priority": i})
 
-        # 3. Combine everything and send to the backend
         payload = session["temp_signup_data"]
         payload["emergency_contacts"] = contacts_list
 
@@ -69,18 +62,13 @@ def signup_emergency():
             data = response.json()
 
             if response.status_code == 201:
-                # Cleanup, log in, and redirect
                 session.pop("temp_signup_data", None)
                 session["username"] = payload["username"]
-                session["user_id"] = data.get("user_id")
+                session["user_id"]  = data.get("user_id")
 
-                # Fetch the profile data so the dashboard loads correctly
                 login_response = requests.post(
                     f"{API_GATEWAY_URL}/login",
-                    json={
-                        "username": payload["username"],
-                        "password": payload["password"],
-                    },
+                    json={"username": payload["username"], "password": payload["password"]},
                 )
                 if login_response.status_code == 200:
                     session["profile"] = login_response.json().get("profile", {})
@@ -107,19 +95,16 @@ def login():
             f"{API_GATEWAY_URL}/login",
             json={"username": username, "password": password},
         )
-
         data = response.json()
 
         if response.status_code == 200 and data.get("success"):
-            session["token"] = data["token"]
+            session["token"]    = data["token"]
             session["username"] = username
-            session["user_id"] = data["user_id"]
-            session["profile"] = data.get("profile", {})
+            session["user_id"]  = data["user_id"]
+            session["profile"]  = data.get("profile", {})
             return redirect(url_for("home"))
         else:
-            return render_template(
-                "login.html", error=data.get("error", "Invalid credentials")
-            )
+            return render_template("login.html", error=data.get("error", "Invalid credentials"))
 
     except Exception as e:
         return f"Backend connection failed: {str(e)}"
@@ -132,50 +117,45 @@ def logout():
 
 
 # =========================
-# DASHBOARD & CONTACTS
+# DASHBOARD
 # =========================
 @app.route("/home")
 def home():
     if "username" not in session:
         return redirect(url_for("index"))
 
-    profile = session.get("profile", {})
-    email = profile.get("email", session["username"])
+    profile     = session.get("profile", {})
+    email       = profile.get("email", session["username"])
     device_info = {"battery": "--", "status": "Disconnected"}
 
-    return render_template(
-        "home.html", username=session["username"], email=email, device=device_info
-    )
+    return render_template("home.html", username=session["username"], email=email, device=device_info)
 
 
+# =========================
+# EMERGENCY CONTACTS
+# =========================
 @app.route("/edit-emergency-contacts", methods=["GET", "POST"])
 def edit_emergency_contacts():
     if "username" not in session:
         return redirect(url_for("index"))
 
     if request.method == "POST":
-        names = request.form.getlist("contact_name")
+        names  = request.form.getlist("contact_name")
         emails = request.form.getlist("contact_email")
 
-        new_contacts = []
-        for i, (name, email) in enumerate(zip(names, emails), start=1):
-            if name.strip() and email.strip():
-                new_contacts.append({"name": name, "email": email, "priority": i})
+        new_contacts = [
+            {"name": name, "email": email, "priority": i}
+            for i, (name, email) in enumerate(zip(names, emails), start=1)
+            if name.strip() and email.strip()
+        ]
 
-        # Send update to API Gateway
         try:
             requests.patch(
                 f"{API_GATEWAY_URL}/user",
-                json={
-                    "user_id": session.get("user_id"),
-                    "emergency_contacts": new_contacts,
-                },
+                json={"user_id": session.get("user_id"), "emergency_contacts": new_contacts},
             )
-
-            # Update session locally so UI reflects changes immediately
             session["profile"]["emergency_contacts"] = new_contacts
             session.modified = True
-
         except Exception as e:
             print(f"Failed to update contacts: {e}")
 
@@ -186,18 +166,8 @@ def edit_emergency_contacts():
 
 
 # =========================
-# OTHER ROUTES
+# EDIT PROFILE
 # =========================
-@app.route("/fall-history")
-def fall_history():
-    return "Fall History Page"
-
-
-@app.route("/device-status")
-def device_status():
-    return "Device Status Page"
-
-
 @app.route("/edit-profile", methods=["GET", "POST"])
 def edit_profile():
     if "username" not in session:
@@ -207,20 +177,15 @@ def edit_profile():
 
     if request.method == "POST":
         updated_profile = {
-            "first_name": request.form.get(
-                "first_name", profile.get("first_name", "")
-            ).strip(),
-            "last_name": request.form.get(
-                "last_name", profile.get("last_name", "")
-            ).strip(),
-            "phone": request.form.get("phone", profile.get("phone", "")).strip(),
-            "email": request.form.get("email", profile.get("email", "")).strip(),
-            "role": request.form.get("role", profile.get("role", "owner")),
+            "first_name": request.form.get("first_name", profile.get("first_name", "")).strip(),
+            "last_name":  request.form.get("last_name",  profile.get("last_name",  "")).strip(),
+            "phone":      request.form.get("phone",      profile.get("phone",      "")).strip(),
+            "email":      request.form.get("email",      profile.get("email",      "")).strip(),
+            "role":       request.form.get("role",       profile.get("role", "owner")),
         }
 
-        # Handle password change if requested
         new_password = request.form.get("new_password", "").strip()
-        confirm = request.form.get("confirm_password", "").strip()
+        confirm      = request.form.get("confirm_password", "").strip()
 
         if new_password:
             if new_password == confirm:
@@ -233,17 +198,11 @@ def edit_profile():
                     error="Passwords do not match.",
                 )
 
-        # Send update to API Gateway
         try:
             requests.patch(
                 f"{API_GATEWAY_URL}/user",
-                json={
-                    "user_id": session.get("user_id"),
-                    "profile_updates": updated_profile,
-                },
+                json={"user_id": session.get("user_id"), "profile_updates": updated_profile},
             )
-
-            # Update session
             session["profile"].update(updated_profile)
             session.modified = True
         except Exception as e:
@@ -251,9 +210,20 @@ def edit_profile():
 
         return redirect(url_for("edit_profile"))
 
-    return render_template(
-        "edit_profile.html", username=session["username"], user=profile
-    )
+    return render_template("edit_profile.html", username=session["username"], user=profile)
+
+
+# =========================
+# STUB ROUTES
+# =========================
+@app.route("/fall-history")
+def fall_history():
+    return "Fall History Page"
+
+
+@app.route("/device-status")
+def device_status():
+    return "Device Status Page"
 
 
 if __name__ == "__main__":

@@ -6,32 +6,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Forces the top-to-bottom gradient only for the home page */
+        /* Forces the top-to-bottom gradient to fill the entire screen */
         body, html {
             background: linear-gradient(to bottom, #1E90FF, #800080) !important;
-            display: flex;
-            justify-content: center;
-            overflow-x: hidden;
             margin: 0;
             min-height: 100%;
+            font-family: 'Roboto', sans-serif;
         }
     
-        /* Updated: Small, thin, solid white sidebars */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            /* Reserved 900px for content to make sidebars thinner */
-            width: calc((100vw - 900px) / 2); 
-            background: white; /* Completely white */
-            z-index: -1;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1); /* Optional: subtle shadow for depth */
-        }
-    
-        .left-sidebar { left: 0; }
-        .right-sidebar { right: 0; }
-    
-        /* Expanded content area to accommodate thinner sidebars */
+        /* Centers the content and defines the maximum width for the dashboard */
         .inner-wrapper {
             min-height: 100vh;
             display: flex;
@@ -39,12 +22,13 @@
             align-items: center;
             padding: 48px 20px 60px;
             width: 100%;
-            max-width: 900px; /* Match the new sidebar calculation */
+            max-width: 800px; /* Limits width so it doesn't look stretched on wide screens */
             margin: 0 auto;
         }
     
+        /* Standardizes width for cards and buttons */
         .nav-card, .status-row, .btn-ble {
-            max-width: 650px !important;
+            max-width: 520px; /* Reverted to original compact size */
             width: 100%;
         }
     
@@ -54,14 +38,9 @@
             margin-top: 10px;
         }
     
-        /* Reverted vivid status colors */
+        /* Original vivid status colors */
         .status-red { color: #ff4d4d !important; }
         .status-green { color: #2ecc71 !important; }
-    
-        /* Responsive: hide sidebars on tablets/phones */
-        @media (max-width: 1000px) {
-            .sidebar { display: none; }
-        }
     </style>
 </head>
 <body>

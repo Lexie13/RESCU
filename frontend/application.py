@@ -20,22 +20,25 @@ def index():
 # =========================
 @app.route("/signup", methods=["GET", "POST"])
 def signup_page():
-    if request.method == "POST":
-        session["temp_signup_data"] = {
-            "username":   request.form.get("username"),
-            "password":   request.form.get("password"),
-            "first_name": request.form.get("first_name"),
-            "last_name":  request.form.get("last_name"),
-            "email":      request.form.get("email"),
-            "role":       request.form.get("role", "owner"),
-        }
+    if request.method == "GET":
+        # Clear any stale signup session data so a fresh visit always shows the form
+        session.pop("temp_signup_data", None)
+        return render_template("signup.html")
 
-        if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
-            return render_template("signup.html", error="Please enter both username and password.")
+    # POST — collect form data and move to step 2
+    session["temp_signup_data"] = {
+        "username":   request.form.get("username"),
+        "password":   request.form.get("password"),
+        "first_name": request.form.get("first_name"),
+        "last_name":  request.form.get("last_name"),
+        "email":      request.form.get("email"),
+        "role":       request.form.get("role", "owner"),
+    }
 
-        return redirect(url_for("signup_emergency"))
+    if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
+        return render_template("signup.html", error="Please enter both username and password.")
 
-    return render_template("signup.html")
+    return redirect(url_for("signup_emergency"))
 
 
 @app.route("/signup-emergency", methods=["GET", "POST"])
@@ -56,25 +59,42 @@ def signup_emergency():
 
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
-            data = response.json()
+
+            # Safely parse JSON — API may return a string or malformed body
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+
+            # Normalize: if the API returned a plain string instead of a dict, wrap it
+            if not isinstance(data, dict):
+                data = {"message": str(data)}
 
             if response.status_code == 201:
                 session.pop("temp_signup_data", None)
                 session["username"] = payload["username"]
                 session["user_id"]  = data.get("user_id")
 
-                login_response = requests.post(
-                    f"{API_GATEWAY_URL}/login",
-                    json={"username": payload["username"], "password": payload["password"]},
-                )
-                if login_response.status_code == 200:
-                    session["profile"] = login_response.json().get("profile", {})
+                # Fetch profile so dashboard loads correctly
+                try:
+                    login_response = requests.post(
+                        f"{API_GATEWAY_URL}/login",
+                        json={"username": payload["username"], "password": payload["password"]},
+                    )
+                    if login_response.status_code == 200:
+                        login_data = login_response.json()
+                        if isinstance(login_data, dict):
+                            session["profile"] = login_data.get("profile", {})
+                except Exception:
+                    session["profile"] = {}
 
                 return redirect(url_for("home"))
             else:
-                return f"Registration failed: {data.get('error', 'Unknown error')}"
+                error_msg = data.get("error") or data.get("message") or f"Status {response.status_code}"
+                return render_template("signup_emergency.html", error=error_msg)
+
         except Exception as e:
-            return f"Backend connection failed: {str(e)}"
+            return render_template("signup_emergency.html", error=f"Backend connection failed: {str(e)}")
 
     return render_template("signup_emergency.html")
 
@@ -92,7 +112,14 @@ def login():
             f"{API_GATEWAY_URL}/login",
             json={"username": username, "password": password},
         )
-        data = response.json()
+
+        try:
+            data = response.json()
+        except Exception:
+            data = {}
+
+        if not isinstance(data, dict):
+            data = {}
 
         if response.status_code == 200 and data.get("success"):
             session["token"]    = data["token"]
@@ -104,7 +131,7 @@ def login():
             return render_template("login.html", error=data.get("error", "Invalid credentials"))
 
     except Exception as e:
-        return f"Backend connection failed: {str(e)}"
+        return render_template("login.html", error=f"Backend connection failed: {str(e)}")
 
 
 @app.route("/logout")

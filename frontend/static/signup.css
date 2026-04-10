@@ -1,5 +1,54 @@
+/* General body */
+body {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background: linear-gradient(to bottom, #1E90FF, #800080);
+    font-family: 'Roboto', sans-serif;
+    text-align: center;
+}
+
+/* Main heading */
+h1 {
+    color: #FFFFFF;
+    font-size: 80px;
+    font-family: 'Montserrat', sans-serif;
+    margin-bottom: 40px;
+}
+
+/* Form container */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #ffffff;
+    padding: 40px 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    width: 400px;
+}
+
+/* Forms */
+form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+form h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    margin-bottom: 20px;
+    font-size: 28px;
+    color: #1E90FF;
+}
+
 /* =======================
-    Signup Role Slider
+    Signup Role Slider 
    ======================= */
 .role-toggle-wrapper {
     margin-bottom: 20px;
@@ -11,12 +60,12 @@
     display: flex;
     align-items: center;
     width: 100%;
-    height: 45px;
+    height: 50px;
     background-color: #f0f0f0;
-    border-radius: 25px;
+    border-radius: 30px;
     cursor: pointer;
     border: 1px solid #ccc;
-    overflow: hidden; /* Keeps the slider within the rounded edges */
+    overflow: hidden;
 }
 
 .toggle-slider {
@@ -24,22 +73,95 @@
     width: 50%;
     height: 100%;
     background-color: #1E90FF;
-    border-radius: 25px;
-    transition: transform 0.3s ease;
+    border-radius: 30px;
+    transition: transform 0.3s ease-in-out;
     z-index: 1;
 }
 
 .toggle-label {
     flex: 1;
     z-index: 2;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
     color: #555;
     transition: color 0.3s ease;
-    pointer-events: none; /* Let the click pass through to the parent div */
+    pointer-events: none; /* Allows click to reach the parent toggle div */
+    line-height: 50px;
 }
 
-/* Active text color */
+/* Changes text to white when the slider is underneath it */
 .toggle-label.active {
     color: #ffffff;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="password"],
+input[type="tel"],
+input[type="email"] {
+    width: 90%;
+    padding: 12px 15px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+/* Focus state */
+input:focus {
+    outline: none;
+    border-color: #1E90FF;
+}
+
+/* Buttons */
+button {
+    width: 90%;
+    padding: 12px 15px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #1E90FF;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background: #104E8B;
+}
+
+/* Error message (for password mismatch) */
+.error {
+    color: red;
+    font-size: 14px;
+    margin-top: 10px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease-in-out;
+    height: 0; /* Prevents layout jump when hidden */
+}
+
+.error.show {
+    opacity: 1;
+    transform: scale(1);
+    height: auto;
+}
+
+/* Signup / Back link */
+.login-link {
+    margin-top: 25px;
+    font-size: 16px;
+}
+
+.login-link a {
+    color: #1E90FF;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
 }

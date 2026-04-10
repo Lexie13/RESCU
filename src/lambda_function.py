@@ -39,13 +39,14 @@ def lambda_handler(event, context):
             password = body.get("password")
             first_name = body.get("first_name")
             last_name = body.get("last_name")
-            phone = body.get("phone")
+            phone = body.get("phone", "") # Make phone optional (defaults to empty string)
             email = body.get("email")
             role = body.get("role", "primary_user")
 
             emergency_contacts = body.get("emergency_contacts", [])
 
-            if not all([username, password, first_name, last_name, phone, email]):
+            # Removed 'phone' from the required fields check below
+            if not all([username, password, first_name, last_name, email]):
                 return {
                     "statusCode": 400,
                     "body": json.dumps("Missing required registration fields"),

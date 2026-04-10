@@ -15,23 +15,23 @@
             margin: 0;
             min-height: 100%;
         }
-
-        /* Sidebar containers for decoration */
+    
+        /* Updated: Small, thin, solid white sidebars */
         .sidebar {
             position: fixed;
             top: 0;
             bottom: 0;
-            /* Increased center area from 600px to 800px, making sidebars smaller */
-            width: calc((100vw - 800px) / 2); 
+            /* Reserved 900px for content to make sidebars thinner */
+            width: calc((100vw - 900px) / 2); 
+            background: white; /* Completely white */
             z-index: -1;
-            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1); /* Optional: subtle shadow for depth */
         }
-
-        .nav-card, .status-row, .btn-ble {
-            max-width: 650px !important; /* Expanded from 520px */
-            width: 100%;
-        }
-
+    
+        .left-sidebar { left: 0; }
+        .right-sidebar { right: 0; }
+    
+        /* Expanded content area to accommodate thinner sidebars */
         .inner-wrapper {
             min-height: 100vh;
             display: flex;
@@ -39,55 +39,27 @@
             align-items: center;
             padding: 48px 20px 60px;
             width: 100%;
-            max-width: 800px; /* Match the sidebar calculation */
+            max-width: 900px; /* Match the new sidebar calculation */
             margin: 0 auto;
         }
-
-        .left-sidebar { left: 0; }
-        .right-sidebar { right: 0; }
-
-        /* Decorative white circles inside sidebars */
-        .sidebar::before, .sidebar::after {
-            content: "";
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.08);
+    
+        .nav-card, .status-row, .btn-ble {
+            max-width: 650px !important;
+            width: 100%;
         }
-
-        .left-sidebar::before {
-            width: 300px; height: 300px;
-            top: 10%; left: -50px;
-        }
-
-        .left-sidebar::after {
-            width: 150px; height: 150px;
-            bottom: 20%; right: 10%;
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .right-sidebar::before {
-            width: 250px; height: 250px;
-            top: 40%; right: -30px;
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .right-sidebar::after {
-            width: 100px; height: 100px;
-            top: 15%; left: 20%;
-        }
-
+    
         /* Header styling overrides */
         .page-header h2 {
             font-size: 2.8rem;
             margin-top: 10px;
         }
-
+    
         /* Reverted vivid status colors */
         .status-red { color: #ff4d4d !important; }
         .status-green { color: #2ecc71 !important; }
-
-        /* Responsive: hide sidebars on smaller screens */
-        @media (max-width: 900px) {
+    
+        /* Responsive: hide sidebars on tablets/phones */
+        @media (max-width: 1000px) {
             .sidebar { display: none; }
         }
     </style>

@@ -7,10 +7,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        .contact-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
         .contact-pair {
             display: flex;
             gap: 10px;
-            margin: 8px 0;
+            flex: 1;
         }
         .contact-pair input {
             margin: 0;
@@ -27,7 +33,6 @@
             border-radius: 50%;
             font-size: 13px;
             font-weight: 700;
-            margin-top: 8px;
             flex-shrink: 0;
         }
         .contacts-note {
@@ -37,6 +42,18 @@
         }
         .form-section {
             overflow-y: auto;
+        }
+        /* Go Back — always blue, never grey */
+        .login-link a,
+        .login-link a:visited,
+        .login-link a:active,
+        .login-link a:hover {
+            color: #1E90FF !important;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -55,10 +72,10 @@
                     <p class="contacts-note">Add up to 5 contacts. At least one is recommended.</p>
 
                     {% for i in range(1, 6) %}
-                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <div class="contact-row">
                         <div class="contact-number">{{ i }}</div>
-                        <div class="contact-pair" style="flex: 1;">
-                            <input type="text" name="contact_name_{{ i }}" placeholder="Full Name">
+                        <div class="contact-pair">
+                            <input type="text"  name="contact_name_{{ i }}"  placeholder="Full Name">
                             <input type="email" name="contact_email_{{ i }}" placeholder="Email Address">
                         </div>
                     </div>

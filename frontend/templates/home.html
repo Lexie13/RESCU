@@ -151,55 +151,57 @@
         <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
     </div>
 
-    <script>
-    const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
-    const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
+    <nav class="action-list">
+        <a href="{{ url_for('edit_profile') }}" class="action-item" target="content-frame">
+            <span>Account Info</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('device_status') }}" class="action-item" target="content-frame">
+            <span>Device Settings</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item" target="content-frame">
+            <span>Emergency Contacts</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('fall_history') }}" class="action-item" target="content-frame">
+            <span>Fall History</span>
+            <span class="arrow">→</span>
+        </a>
+    </nav>
 
-    const connectBtn = document.getElementById('connect-ble');
-    const batteryEl  = document.getElementById('battery-val');
-    const statusEl   = document.getElementById('connection-status');
+    <footer>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+    </footer>
+</div>
 
-    connectBtn.addEventListener('click', async () => {
-        try {
-            statusEl.textContent = 'Searching…';
-            statusEl.className = 's-value';
+<script>
+const connectBtn = document.getElementById('connect-ble');
+const statusEl = document.getElementById('connection-status');
 
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'RESCU_DEVICE' }],
-                optionalServices: [BATTERY_SERVICE_UUID]
-            });
-            const server  = await device.gatt.connect();
-            
-            statusEl.textContent = 'Connected';
-            statusEl.classList.add('status-green');
-            statusEl.classList.remove('status-red');
+// 1. Trigger connection in the Parent Shell
+connectBtn.addEventListener('click', () => {
+    statusEl.textContent = "Searching...";
+    window.parent.postMessage("CONNECT_BLE", "*");
+});
 
-            const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
-            const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
-            await characteristic.startNotifications();
+// 2. Listen for status updates from the Parent Shell
+// Inside home.html script
+const batteryEl = document.getElementById('battery-val');
 
-            characteristic.addEventListener('characteristicvaluechanged', (e) => {
-                try {
-                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                    if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
-                } catch (err) { console.error('Parse error:', err); }
-            });
+window.addEventListener("message", (event) => {
+    // 1. Handle Connection Status
+    if (event.data.type === "STATUS") {
+        statusEl.textContent = event.data.value;
+        statusEl.style.color = "#4df153";
+        statusEl.classList.add("online");
+    }
 
-            const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
-            batteryEl.textContent = initial.battery_pct + '%';
-
-            device.addEventListener('gattserverdisconnected', () => {
-                statusEl.textContent = 'Disconnected';
-                statusEl.classList.add('status-red');
-                statusEl.classList.remove('status-green');
-                batteryEl.textContent = '--';
-            });
-        } catch (err) {
-            console.error('BLE Error:', err);
-            statusEl.textContent = 'Error';
-            statusEl.classList.add('status-red');
-        }
-    });
-    </script>
+    // 2. Handle Battery Updates (Restored Functionality)
+    if (event.data.type === "BATTERY_UPDATE") {
+        batteryEl.textContent = event.data.value;
+    }
+});
+</script>
 </body>
 </html>

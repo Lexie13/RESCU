@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import os
+import format_text
 import requests
 
 app = Flask(__name__)
@@ -142,14 +143,19 @@ def logout():
 # =========================
 @app.route("/home")
 def home():
-    if "username" not in session:
-        return redirect(url_for("index"))
+    if not session.get('user'):
+        return redirect(url_for('index'))
 
-    profile     = session.get("profile", {})
-    email       = profile.get("email", session["username"])
-    device_info = {"battery": "--", "status": "Disconnected"}
+    # If the user is navigating directly to the page, give them the shell
+    if request.headers.get('Sec-Fetch-Dest') != 'iframe':
+        return render_template('parent_page.html')
 
-    return render_template("home.html", username=session["username"], email=email, device=device_info)
+    # Otherwise, return the original home.html
+    user_data = users.get(session.get('user'), {})
+    return render_template('home.html',
+                           username=session.get('user'),
+                           email=user_data.get('email'),
+                           device={"battery": "--", "status": "Disconnected"})
 
 
 # =========================
@@ -233,6 +239,17 @@ def edit_profile():
     return render_template("edit_profile.html", username=session["username"], user=profile)
 
 
+@app.route('/process-fall', methods=['POST'])
+def process_fall():
+    data = request.json
+    # Pass the JS data into your moved script
+    cap_xml = format_text.get_cap_xml_for_current_alert(data['mcu'], data['location'])
+
+    print("Generated CAP XML:")
+    print(cap_xml)
+
+    # Next step: Send cap_xml to your lambda_function.py or emergency service
+    return {"status": "processed"}
 # =========================
 # STUB ROUTES
 # =========================

@@ -1,35 +1,54 @@
-<div class="form-section">
-    <div class="form-container">
-        <form action="/signup" method="post">
-            <h2>Create Account</h2>
-            <p class="subtext">Select your role and enter your details.</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R.E.S.C.U. Signup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="hero-section">
+            <h1>R.E.S.C.U.</h1>
+            <p>Sign up to create your account.</p>
+        </div>
 
-            <div class="role-slider-container">
-                <div class="role-slider">
-                    <input type="radio" name="role" id="owner" value="owner" checked>
-                    <label for="owner" class="slider-label">Owner</label>
+        <div class="form-section">
+            <div class="form-container">
+                <form action="/signup" method="post">
+                    <h2>Create Account</h2>
+                    <p class="subtext">Select your role and enter your details.</p>
 
-                    <input type="radio" name="role" id="caregiver" value="caregiver">
-                    <label for="caregiver" class="slider-label">Caregiver</label>
-                    
-                    <div class="slider-tab"></div>
-                </div>
+                    <div class="role-slider-container">
+                        <div class="role-slider">
+                            <input type="radio" name="role" id="owner" value="owner" checked>
+                            <label for="owner" class="slider-label">Owner</label>
+
+                            <input type="radio" name="role" id="caregiver" value="caregiver">
+                            <label for="caregiver" class="slider-label">Caregiver</label>
+                            
+                            <div class="slider-tab"></div>
+                        </div>
+                    </div>
+
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="tel" name="phone" placeholder="Phone Number" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+
+                    {% if error %}
+                    <div class="error show">{{ error }}</div>
+                    {% endif %}
+
+                    <button type="submit">Sign Up</button>
+                </form>
+
+                <p class="login-link">
+                    <a href="{{ url_for('index') }}">← Go Back</a>
+                </p>
             </div>
-
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="tel" name="phone" placeholder="Phone Number" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
-
-            {% if error %}
-            <div class="error show">{{ error }}</div>
-            {% endif %}
-
-            <button type="submit">Sign Up</button>
-        </form>
-
-        <p class="login-link">
-            <a href="{{ url_for('index') }}">← Go Back</a>
-        </p>
+        </div>
     </div>
-</div>
+</body>
+</html>

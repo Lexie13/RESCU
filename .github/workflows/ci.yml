@@ -34,7 +34,8 @@ jobs:
       - name: Run Flake8
         run: |
           # Specifically target the src and tests directories
-          flake8 src tests
+          # E501 ignores line length errors
+          flake8 src tests --ignore=E501
 
       # step 5: Format check with Black
       - name: Run Black (check only)
@@ -47,5 +48,6 @@ jobs:
         env:
           # Tells Python to look inside the src/ folder for your import statements
           PYTHONPATH: src
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           pytest

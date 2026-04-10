@@ -3,34 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <title>R.E.S.C.U. Home</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Forces the top-to-bottom gradient to fill the entire screen */
+        body, html {
+            background: linear-gradient(to bottom, #1E90FF, #800080) !important;
+            margin: 0;
+            min-height: 100%;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* Expands the wrapper to fill the space better while keeping things in a line */
+        .inner-wrapper {
+            /* Change min-height to height and use box-sizing */
+            height: 100vh; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Reduce padding slightly or ensure it's included in the height calculation */
+            padding: 40px 20px; 
+            width: 100%;
+            max-width: 700px; 
+            margin: 0 auto;
+            box-sizing: border-box; /* Ensures padding doesn't add to the 100vh */
+        }
+
+        /* Header styling */
+        .page-header h2 {
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
+            margin-top: 10px;
+            text-align: center;
+            color: white;
+        }
+        
+        .page-header p {
+            text-align: center;
+            color: white;
+            opacity: 0.9;
+        }
+
+        /* Standardizing widths for the vertical stack */
+        .status-row, 
+        .btn-ble, 
+        .nav-container,
+        .nav-card {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* Enhanced Nav Cards for better vertical presence */
+        .nav-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 12px;
+            padding: 24px 28px;
+            text-decoration: none;
+            color: #1E90FF;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.15s, box-shadow 0.15s;
+            margin-bottom: 16px;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+
+        /* Connect Button - Fixed Purple */
+        .btn-ble {
+            background: #800080 !important; 
+            color: white !important;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s !important;
+            margin-bottom: 24px;
+        }
+
+        /* Hover & Active states: No color change, just motion */
+        .btn-ble:hover {
+            background: #800080 !important; 
+            transform: translateY(-2px);
+        }
+
+        .btn-ble:active {
+            background: #800080 !important;
+            transform: scale(0.98);
+        }
+
+        /* Status card specific colors */
+        .status-red { color: #ff4d4d !important; }
+        .status-green { color: #2ecc71 !important; }
+
+        @media (max-width: 600px) {
+            .status-row { flex-direction: column; width: 100%; }
+        }
+    </style>
 </head>
 <body>
+    <div class="inner-wrapper">
+        <header class="page-header">
+            <h2>Welcome, {{ username }}!</h2>
+            <p>{{ email }}</p>
+        </header>
 
-<div class="main-wrapper">
-    <header class="hero-section">
-        <h1>Welcome, {{ username }}!</h1>
-        <p class="user-email">{{ email }}</p>
-    </header>
-
-    <hr class="full-separator">
-
-    <section class="status-container">
-        <div class="status-card">
-            <span class="label">Battery Status</span>
-            <span id="battery-val" class="value">{{ device.battery }}</span>
+        <div class="status-row">
+            <div class="status-card">
+                <div class="s-label">Battery</div>
+                <div id="battery-val" class="s-value">{{ device.battery }}</div>
+            </div>
+            <div class="status-card">
+                <div class="s-label">Connection</div>
+                <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
+            </div>
         </div>
-        <div class="status-card">
-            <span class="label">Connection</span>
-            <span id="connection-status" class="value online">{{ device.status }}</span>
-        </div>
-    </section>
 
-    <div style="text-align: center; margin-bottom: 20px;">
-        <button id="connect-ble" class="action-item" style="background: #1E90FF; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
-            Connect to RESCU Device
-        </button>
+        <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
+
+        <div class="nav-container">
+            <a href="{{ url_for('edit_profile') }}" class="nav-card">
+                <span>Account Info</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('device_status') }}" class="nav-card">
+                <span>Device Settings</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
+                <span>Emergency Contacts</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('fall_history') }}" class="nav-card">
+                <span>Fall History</span>
+                <span class="arrow">→</span>
+            </a>
+        </div>
+
+        <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
     </div>
 
     <nav class="action-list">

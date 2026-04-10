@@ -1,43 +1,50 @@
 /* =========================================
-   1. General Layout
+   1. General Reset & Base Styles
    ========================================= */
-body {
-    height: 100vh;
+* { box-sizing: border-box; }
+
+body, html {
+    height: 100%;
     margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to bottom, #1E90FF, #800080);
     font-family: 'Roboto', sans-serif;
+    background: #f4f7f6;
+    color: #333;
 }
 
-/* Page wrapper for split screen */
 .page-wrapper {
     display: flex;
+    height: 100vh;
     width: 100%;
-    height: 100%;
 }
 
+/* =========================================
+   2. Shared Split Screen Style
+   ========================================= */
 .hero-section {
     flex: 1.2;
+    background: linear-gradient(135deg, #1E90FF, #800080);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: #FFFFFF;
-    text-align: center;
+    color: white;
     padding: 40px;
+    text-align: center;
 }
 
 .hero-section h1 {
-    font-size: 80px;
     font-family: 'Montserrat', sans-serif;
-    margin-bottom: 20px;
+    font-size: clamp(50px, 8vw, 90px);
+    margin: 0;
+    letter-spacing: 4px;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .hero-section p {
     font-size: 20px;
-    white-space: nowrap; /* Forces branding onto one line */
+    opacity: 0.9;
+    margin-top: 15px;
+    white-space: nowrap; 
 }
 
 .form-section {
@@ -45,38 +52,36 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #ffffff;
+    background: #ffffff;
+    padding: 40px 20px;
 }
 
 .form-container {
-    width: 400px;
-    padding: 40px 30px;
-    text-align: center;
+    width: 100%;
+    max-width: 400px;
 }
 
 /* =========================================
-   2. Role Slider (Owner/Caregiver Toggle)
+   3. Role Slider Component
    ========================================= */
 .role-slider-container {
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .role-slider {
     position: relative;
     display: flex;
     width: 100%;
-    background: #f0f0f0;
-    padding: 5px;
+    background: #eee;
+    padding: 4px;
     border-radius: 12px;
-    height: 55px;
-    border: 1px solid #ccc;
+    height: 50px;
+    user-select: none;
 }
 
-.role-slider input[type="radio"] {
-    display: none;
-}
+.role-slider input[type="radio"] { display: none; }
 
 .slider-label {
     flex: 1;
@@ -86,99 +91,75 @@ body {
     align-items: center;
     cursor: pointer;
     font-weight: 700;
-    font-size: 18px;
-    color: #555;
+    color: #666;
     transition: color 0.3s;
 }
 
 .slider-tab {
     position: absolute;
-    top: 5px;
-    left: 5px;
-    width: calc(50% - 5px);
-    height: calc(100% - 10px);
+    top: 4px; left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
     background: #1E90FF;
-    border-radius: 8px;
+    border-radius: 10px;
     transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
     z-index: 1;
 }
 
-/* Logic for the slider movement */
 #owner:checked ~ .slider-tab { transform: translateX(0); }
 #caregiver:checked ~ .slider-tab { transform: translateX(100%); }
-
-#owner:checked ~ label[for="owner"],
-#caregiver:checked ~ label[for="caregiver"] {
-    color: white;
-}
+#owner:checked ~ label[for="owner"], #caregiver:checked ~ label[for="caregiver"] { color: white; }
 
 /* =========================================
-   3. Inputs & Buttons
+   4. Form Elements
    ========================================= */
-input[type="text"],
-input[type="password"],
-input[type="tel"] {
+form h2 { font-family: 'Montserrat', sans-serif; font-size: 32px; margin-bottom: 8px; }
+.subtext { color: #777; margin-bottom: 20px; }
+
+input[type="text"], input[type="password"], input[type="tel"] {
     width: 100%;
-    padding: 12px 15px;
+    padding: 14px 16px;
     margin: 8px 0;
     border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 18px;
-    box-sizing: border-box;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    background-color: #fafafa;
 }
 
 button {
     width: 100%;
-    padding: 12px 15px;
+    padding: 15px;
     margin-top: 15px;
     border: none;
     border-radius: 8px;
     background: #1E90FF;
     color: #fff;
-    font-size: 20px;
+    font-size: 18px;
+    font-weight: 700;
     cursor: pointer;
-    font-weight: bold;
-}
-
-button:hover {
-    background: #104E8B;
 }
 
 /* =========================================
-   4. Go Back Link (Never turns grey)
+   5. Persistent "Go Back" Link
    ========================================= */
 .login-link {
     margin-top: 25px;
-    font-size: 18px;
+    text-align: center;
 }
 
 .login-link a, 
 .login-link a:visited, 
 .login-link a:active {
-    color: #1E90FF !important; /* Persistent blue */
+    color: #1E90FF !important; /* Never turns grey */
     text-decoration: none;
-    font-weight: bold;
+    font-weight: 700;
 }
 
-.login-link a:hover {
-    text-decoration: underline;
-}
+.login-link a:hover { text-decoration: underline; }
 
-/* Error message styling */
-.error {
-    color: red;
-    font-size: 14px;
-    margin-top: 5px;
-    display: none;
-}
-.error.show { display: block; }
-
-/* =========================================
-   5. Responsiveness
-   ========================================= */
+/* Responsive */
 @media (max-width: 850px) {
     .page-wrapper { flex-direction: column; }
-    .hero-section { flex: 0.5; padding: 20px; }
-    .hero-section h1 { font-size: 40px; }
+    .hero-section { flex: 0.4; }
     .hero-section p { white-space: normal; }
 }

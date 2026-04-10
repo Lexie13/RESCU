@@ -24,8 +24,18 @@ ALLOWED_MSGTYPE = {"Alert", "Update", "Cancel", "Ack", "Error"}
 ALLOWED_SCOPE = {"Public", "Restricted", "Private"}
 
 ALLOWED_CATEGORY = {
-    "Geo", "Met", "Safety", "Security", "Rescue", "Fire",
-    "Health", "Env", "Transport", "Infra", "CBRNE", "Other"
+    "Geo",
+    "Met",
+    "Safety",
+    "Security",
+    "Rescue",
+    "Fire",
+    "Health",
+    "Env",
+    "Transport",
+    "Infra",
+    "CBRNE",
+    "Other",
 }
 ALLOWED_URGENCY = {"Immediate", "Expected", "Future", "Past", "Unknown"}
 ALLOWED_SEVERITY = {"Extreme", "Severe", "Moderate", "Minor", "Unknown"}
@@ -34,14 +44,17 @@ ALLOWED_CERTAINTY = {"Observed", "Likely", "Possible", "Unlikely", "Unknown"}
 IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,256}$")
 # -----------------------------------
 
+
 def _require(cond: bool, msg: str) -> None:
     if not cond:
         raise ValueError(msg)
 
 
 def _cap_ts(dt: datetime) -> str:
-    _require(dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None,
-             "CAP timestamps must be timezone-aware.")
+    _require(
+        dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None,
+        "CAP timestamps must be timezone-aware.",
+    )
     return dt.isoformat(timespec="seconds")
 
 
@@ -124,15 +137,15 @@ def get_cap_xml_for_current_alert(mcu_data: dict, location_data: dict) -> str:
 
     # 2. Process Location: Use coordinates captured by Chrome Geolocation API
     # Passed from JS as location: {lat: x, lon: y, accuracy: z}
-    latitude = location_data.get('lat', 40.4237)   # Defaults to West Lafayette/Purdue
-    longitude = location_data.get('lon', -86.9212)
-    radius_km = location_data.get('accuracy', 200) / 1000.0  # Convert meters to km
+    latitude = location_data.get("lat", 40.4237)  # Defaults to West Lafayette/Purdue
+    longitude = location_data.get("lon", -86.9212)
+    radius_km = location_data.get("accuracy", 200) / 1000.0  # Convert meters to km
 
     # 3. Process MCU Data: Extract fields from the ESP32 JSON payload
     # Based on your hardware.ino: {"type":"FALL", "device_id":"RESCU_001", "fall_count":X, "timestamp":"..."}
-    device_id = mcu_data.get('device_id', 'RESCU_DEVICE')
+    device_id = mcu_data.get("device_id", "RESCU_DEVICE")
     event = "Fall Detected"
-    fall_count = mcu_data.get('fall_count', 1)
+    fall_count = mcu_data.get("fall_count", 1)
 
     # 4. CAP fields configuration
     identifier = f"rescu-{sent_time.strftime('%Y%m%dT%H%M%SZ')}"

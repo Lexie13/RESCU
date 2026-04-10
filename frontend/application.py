@@ -10,9 +10,11 @@ API_GATEWAY_URL = os.environ.get(
     "API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
 )
 
+
 @app.route("/")
 def index():
     return render_template("login.html")
+
 
 # =========================
 # SIGNUP ROUTES
@@ -24,18 +26,24 @@ def signup_page():
         return render_template("signup.html")
 
     session["temp_signup_data"] = {
-        "username":   request.form.get("username"),
-        "password":   request.form.get("password"),
+        "username": request.form.get("username"),
+        "password": request.form.get("password"),
         "first_name": request.form.get("first_name"),
-        "last_name":  request.form.get("last_name"),
-        "email":      request.form.get("email"),
-        "role":       request.form.get("role", "owner"),
+        "last_name": request.form.get("last_name"),
+        "email": request.form.get("email"),
+        "role": request.form.get("role", "owner"),
     }
 
-    if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
-        return render_template("signup.html", error="Please enter both username and password.")
+    if (
+        not session["temp_signup_data"]["username"]
+        or not session["temp_signup_data"]["password"]
+    ):
+        return render_template(
+            "signup.html", error="Please enter both username and password."
+        )
 
     return redirect(url_for("signup_emergency"))
+
 
 @app.route("/signup-emergency", methods=["GET", "POST"])
 def signup_emergency():
@@ -45,7 +53,7 @@ def signup_emergency():
     if request.method == "POST":
         contacts_list = []
         for i in range(1, 6):
-            name  = request.form.get(f"contact_name_{i}")
+            name = request.form.get(f"contact_name_{i}")
             email = request.form.get(f"contact_email_{i}")
             if name and email:
                 contacts_list.append({"name": name, "email": email, "priority": i})
@@ -58,7 +66,7 @@ def signup_emergency():
 
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
-            status   = response.status_code
+            status = response.status_code
             raw_body = response.text
 
             try:
@@ -72,12 +80,15 @@ def signup_emergency():
             if status in (200, 201):
                 session.pop("temp_signup_data", None)
                 session["username"] = payload["username"]
-                session["user_id"]  = data.get("user_id")
+                session["user_id"] = data.get("user_id")
 
                 try:
                     login_response = requests.post(
                         f"{API_GATEWAY_URL}/login",
-                        json={"username": payload["username"], "password": payload["password"]},
+                        json={
+                            "username": payload["username"],
+                            "password": payload["password"],
+                        },
                     )
                     if login_response.status_code == 200:
                         login_data = login_response.json()
@@ -92,7 +103,9 @@ def signup_emergency():
                 return render_template("signup_emergency.html", error=debug_msg)
 
         except Exception as e:
-            return render_template("signup_emergency.html", error=f"Request failed: {str(e)}")
+            return render_template(
+                "signup_emergency.html", error=f"Request failed: {str(e)}"
+            )
 
     return render_template("signup_emergency.html")
 
@@ -120,16 +133,20 @@ def login():
             data = {}
 
         if response.status_code == 200 and data.get("success"):
-            session["token"]    = data["token"]
+            session["token"] = data["token"]
             session["username"] = username
-            session["user_id"]  = data["user_id"]
-            session["profile"]  = data.get("profile", {})
+            session["user_id"] = data["user_id"]
+            session["profile"] = data.get("profile", {})
             return redirect(url_for("home"))
         else:
-            return render_template("login.html", error=data.get("error", "Invalid credentials"))
+            return render_template(
+                "login.html", error=data.get("error", "Invalid credentials")
+            )
 
     except Exception as e:
-        return render_template("login.html", error=f"Backend connection failed: {str(e)}")
+        return render_template(
+            "login.html", error=f"Backend connection failed: {str(e)}"
+        )
 
 
 @app.route("/logout")
@@ -143,17 +160,19 @@ def logout():
 # =========================
 @app.route("/home")
 def home():
-    if not session.get('username'):
-        return redirect(url_for('index'))
+    if not session.get("username"):
+        return redirect(url_for("index"))
 
-    if request.headers.get('Sec-Fetch-Dest') != 'iframe':
-        return render_template('parent_page.html')
+    if request.headers.get("Sec-Fetch-Dest") != "iframe":
+        return render_template("parent_page.html")
 
-    user_data = session.get('profile', {})
-    return render_template('home.html',
-                           username=session.get('username'),
-                           email=user_data.get('email'),
-                           device={"battery": "--", "status": "Disconnected"})
+    user_data = session.get("profile", {})
+    return render_template(
+        "home.html",
+        username=session.get("username"),
+        email=user_data.get("email"),
+        device={"battery": "--", "status": "Disconnected"},
+    )
 
 
 # =========================
@@ -165,7 +184,7 @@ def edit_emergency_contacts():
         return redirect(url_for("index"))
 
     if request.method == "POST":
-        names  = request.form.getlist("contact_name")
+        names = request.form.getlist("contact_name")
         emails = request.form.getlist("contact_email")
 
         new_contacts = [
@@ -177,7 +196,10 @@ def edit_emergency_contacts():
         try:
             requests.patch(
                 f"{API_GATEWAY_URL}/user",
-                json={"user_id": session.get("user_id"), "emergency_contacts": new_contacts},
+                json={
+                    "user_id": session.get("user_id"),
+                    "emergency_contacts": new_contacts,
+                },
             )
             session["profile"]["emergency_contacts"] = new_contacts
             session.modified = True
@@ -202,14 +224,18 @@ def edit_profile():
 
     if request.method == "POST":
         updated_profile = {
-            "first_name": request.form.get("first_name", profile.get("first_name", "")).strip(),
-            "last_name":  request.form.get("last_name",  profile.get("last_name",  "")).strip(),
-            "email":      request.form.get("email",      profile.get("email",      "")).strip(),
-            "role":       request.form.get("role",       profile.get("role", "owner")),
+            "first_name": request.form.get(
+                "first_name", profile.get("first_name", "")
+            ).strip(),
+            "last_name": request.form.get(
+                "last_name", profile.get("last_name", "")
+            ).strip(),
+            "email": request.form.get("email", profile.get("email", "")).strip(),
+            "role": request.form.get("role", profile.get("role", "owner")),
         }
 
         new_password = request.form.get("new_password", "").strip()
-        confirm      = request.form.get("confirm_password", "").strip()
+        confirm = request.form.get("confirm_password", "").strip()
 
         if new_password:
             if new_password == confirm:
@@ -225,7 +251,10 @@ def edit_profile():
         try:
             requests.patch(
                 f"{API_GATEWAY_URL}/user",
-                json={"user_id": session.get("user_id"), "profile_updates": updated_profile},
+                json={
+                    "user_id": session.get("user_id"),
+                    "profile_updates": updated_profile,
+                },
             )
             session["profile"].update(updated_profile)
             session.modified = True
@@ -234,20 +263,24 @@ def edit_profile():
 
         return redirect(url_for("edit_profile"))
 
-    return render_template("edit_profile.html", username=session["username"], user=profile)
+    return render_template(
+        "edit_profile.html", username=session["username"], user=profile
+    )
 
 
-@app.route('/process-fall', methods=['POST'])
+@app.route("/process-fall", methods=["POST"])
 def process_fall():
     data = request.json
     # Pass the JS data into your moved script
-    cap_xml = format_text.get_cap_xml_for_current_alert(data['mcu'], data['location'])
+    cap_xml = format_text.get_cap_xml_for_current_alert(data["mcu"], data["location"])
 
     print("Generated CAP XML:")
     print(cap_xml)
 
     # Next step: Send cap_xml to your lambda_function.py or emergency service
     return {"status": "processed"}
+
+
 # =========================
 # STUB ROUTES
 # =========================

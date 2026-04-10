@@ -1,271 +1,174 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
     <title>R.E.S.C.U. Home</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
-
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-
-        /* Specific overrides for this page */
-
-        body {
-            position: relative;
-            overflow-x: hidden; /* Prevents decorative elements from causing horizontal scroll */
-        }
-    
-        /* Decorative white circles */
-        body::before, body::after {
-            content: "";
-            position: fixed;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.07); /* Subtle white transparency */
-            z-index: -1; /* Keeps them behind the content */
-        }
-    
-        /* Large circle on the top left */
-        body::before {
-            width: 400px;
-            height: 400px;
-            top: -100px;
-            left: -150px;
-        }
-    
-        /* Smaller circle on the bottom right */
-        body::after {
-            width: 300px;
-            height: 300px;
-            bottom: 50px;
-            right: -100px;
-            background: rgba(255, 255, 255, 0.04);
-        }
-    
-        /* Responsive adjustment: hide or shrink them on small mobile screens */
-        @media (max-width: 600px) {
-            body::before, body::after {
-                display: none;
-            }
-        }
-
-        .page-header h2 {
-
-            font-size: 2.8rem; /* Larger font size */
-
-            margin-top: 10px;
-
-        }
-
+        /* Forces the top-to-bottom gradient only for the home page */
         body, html {
             background: linear-gradient(to bottom, #1E90FF, #800080) !important;
+            display: flex;
+            justify-content: center;
+            overflow-x: hidden;
+            margin: 0;
+            min-height: 100%;
         }
 
-        /* Custom status colors */
-
-        .status-red { 
-            color: #ff4d4d !important; 
+        /* Sidebar containers for decoration */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: calc((100vw - 600px) / 2);
+            z-index: -1;
+            overflow: hidden;
         }
-    
-        .status-green { 
-            color: #2ecc71 !important;
+
+        .left-sidebar { left: 0; }
+        .right-sidebar { right: 0; }
+
+        /* Decorative white circles inside sidebars */
+        .sidebar::before, .sidebar::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
         }
 
+        .left-sidebar::before {
+            width: 300px; height: 300px;
+            top: 10%; left: -50px;
+        }
+
+        .left-sidebar::after {
+            width: 150px; height: 150px;
+            bottom: 20%; right: 10%;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .right-sidebar::before {
+            width: 250px; height: 250px;
+            top: 40%; right: -30px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .right-sidebar::after {
+            width: 100px; height: 100px;
+            top: 15%; left: 20%;
+        }
+
+        /* Header styling overrides */
+        .page-header h2 {
+            font-size: 2.8rem;
+            margin-top: 10px;
+        }
+
+        /* Reverted vivid status colors */
+        .status-red { color: #ff4d4d !important; }
+        .status-green { color: #2ecc71 !important; }
+
+        /* Responsive: hide sidebars on smaller screens */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+        }
     </style>
-
 </head>
-
 <body>
+    <div class="sidebar left-sidebar"></div>
+    <div class="sidebar right-sidebar"></div>
 
-<div class="inner-wrapper">
+    <div class="inner-wrapper">
+        <header class="page-header">
+            <h2>Welcome, {{ username }}!</h2>
+            <p>{{ email }}</p>
+        </header>
 
-
-
-    <header class="page-header">
-
-        <h2>Welcome, {{ username }}!</h2>
-
-        <p>{{ email }}</p>
-
-    </header>
-
-
-
-    <div class="status-row">
-
-        <div class="status-card">
-
-            <div class="s-label">Battery</div>
-
-            <div id="battery-val" class="s-value">{{ device.battery }}</div>
-
+        <div class="status-row">
+            <div class="status-card">
+                <div class="s-label">Battery</div>
+                <div id="battery-val" class="s-value">{{ device.battery }}</div>
+            </div>
+            <div class="status-card">
+                <div class="s-label">Connection</div>
+                <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
+            </div>
         </div>
 
-        <div class="status-card">
+        <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
 
-            <div class="s-label">Connection</div>
-
-            <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
-
+        <div style="width:100%; max-width:520px;">
+            <a href="{{ url_for('edit_profile') }}" class="nav-card">
+                <span>Account Info</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('device_status') }}" class="nav-card">
+                <span>Device Settings</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
+                <span>Emergency Contacts</span>
+                <span class="arrow">→</span>
+            </a>
+            <a href="{{ url_for('fall_history') }}" class="nav-card">
+                <span>Fall History</span>
+                <span class="arrow">→</span>
+            </a>
         </div>
 
+        <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
     </div>
 
-
-
-    <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
-
-
-
-    <div style="width:100%; max-width:520px;">
-
-        <a href="{{ url_for('edit_profile') }}" class="nav-card">
-
-            <span>Account Info</span>
-
-            <span class="arrow">→</span>
-
-        </a>
-
-        <a href="{{ url_for('device_status') }}" class="nav-card">
-
-            <span>Device Settings</span>
-
-            <span class="arrow">→</span>
-
-        </a>
-
-        <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
-
-            <span>Emergency Contacts</span>
-
-            <span class="arrow">→</span>
-
-        </a>
-
-        <a href="{{ url_for('fall_history') }}" class="nav-card">
-
-            <span>Fall History</span>
-
-            <span class="arrow">→</span>
-
-        </a>
-
-    </div>
-
-
-
-    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
-
-</div>
-
-
-
-<script>
-
-const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
-
-const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
-
-
-
-const connectBtn = document.getElementById('connect-ble');
-
-const batteryEl  = document.getElementById('battery-val');
-
-const statusEl   = document.getElementById('connection-status');
-
-
-
-connectBtn.addEventListener('click', async () => {
-
-    try {
-
-        statusEl.textContent = 'Searching…';
-
-        statusEl.className = 's-value'; // Reset colors while searching
-
-
-
-        const device = await navigator.bluetooth.requestDevice({
-
-            filters: [{ name: 'RESCU_DEVICE' }],
-
-            optionalServices: [BATTERY_SERVICE_UUID]
-
-        });
-
-        const server  = await device.gatt.connect();
-
-        
-
-        statusEl.textContent = 'Connected';
-
-        statusEl.classList.add('status-green');
-
-        statusEl.classList.remove('status-red');
-
-
-
-        const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
-
-        const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
-
-        await characteristic.startNotifications();
-
-
-
-        characteristic.addEventListener('characteristicvaluechanged', (e) => {
-
-            try {
-
-                const data = JSON.parse(new TextDecoder().decode(e.target.value));
-
-                if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
-
-            } catch (err) { console.error('Parse error:', err); }
-
-        });
-
-
-
-        const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
-
-        batteryEl.textContent = initial.battery_pct + '%';
-
-
-
-        device.addEventListener('gattserverdisconnected', () => {
-
-            statusEl.textContent = 'Disconnected';
-
+    <script>
+    const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
+    const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
+
+    const connectBtn = document.getElementById('connect-ble');
+    const batteryEl  = document.getElementById('battery-val');
+    const statusEl   = document.getElementById('connection-status');
+
+    connectBtn.addEventListener('click', async () => {
+        try {
+            statusEl.textContent = 'Searching…';
+            statusEl.className = 's-value';
+
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'RESCU_DEVICE' }],
+                optionalServices: [BATTERY_SERVICE_UUID]
+            });
+            const server  = await device.gatt.connect();
+            
+            statusEl.textContent = 'Connected';
+            statusEl.classList.add('status-green');
+            statusEl.classList.remove('status-red');
+
+            const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+            const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
+            await characteristic.startNotifications();
+
+            characteristic.addEventListener('characteristicvaluechanged', (e) => {
+                try {
+                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
+                    if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
+                } catch (err) { console.error('Parse error:', err); }
+            });
+
+            const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
+            batteryEl.textContent = initial.battery_pct + '%';
+
+            device.addEventListener('gattserverdisconnected', () => {
+                statusEl.textContent = 'Disconnected';
+                statusEl.classList.add('status-red');
+                statusEl.classList.remove('status-green');
+                batteryEl.textContent = '--';
+            });
+        } catch (err) {
+            console.error('BLE Error:', err);
+            statusEl.textContent = 'Error';
             statusEl.classList.add('status-red');
-
-            statusEl.classList.remove('status-green');
-
-            batteryEl.textContent = '--';
-
-        });
-
-    } catch (err) {
-
-        console.error('BLE Error:', err);
-
-        statusEl.textContent = 'Error';
-
-        statusEl.classList.add('status-red');
-
-    }
-
-});
-
-</script>
-
+        }
+    });
+    </script>
 </body>
-
 </html>

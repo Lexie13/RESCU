@@ -9,11 +9,9 @@ API_GATEWAY_URL = os.environ.get(
     "API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
 )
 
-
 @app.route("/")
 def index():
     return render_template("login.html")
-
 
 # =========================
 # SIGNUP ROUTES
@@ -38,7 +36,6 @@ def signup_page():
 
     return redirect(url_for("signup_emergency"))
 
-
 @app.route("/signup-emergency", methods=["GET", "POST"])
 def signup_emergency():
     if "temp_signup_data" not in session:
@@ -54,8 +51,9 @@ def signup_emergency():
 
         payload = session["temp_signup_data"]
         payload["emergency_contacts"] = contacts_list
-
-        payload["phone"] = "000-000-0000"
+        
+        # FIX: satisfy the backend API mandatory field requirement
+        payload["phone"] = "000-000-0000" 
 
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
@@ -89,7 +87,6 @@ def signup_emergency():
 
                 return redirect(url_for("home"))
             else:
-                # Show the raw API response on screen so we can see what's happening
                 debug_msg = f"Status: {status} | Body: {raw_body}"
                 return render_template("signup_emergency.html", error=debug_msg)
 

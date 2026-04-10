@@ -3,47 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>R.E.S.C.U. Emergency Contacts</title>
+    <title>R.E.S.C.U. Signup</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        .contact-row {
+        /* Role slider */
+        .role-slider-container {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0;
-        }
-        .contact-pair {
-            display: flex;
-            gap: 10px;
-            flex: 1;
-        }
-        .contact-pair input {
-            margin: 0;
-            flex: 1;
-        }
-        .contact-number {
-            display: flex;
-            align-items: center;
             justify-content: center;
-            min-width: 28px;
-            height: 28px;
-            background: #1E90FF;
-            color: white;
-            border-radius: 50%;
-            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .role-slider {
+            position: relative;
+            display: flex;
+            width: 100%;
+            background: #f0f0f0;
+            padding: 5px;
+            border-radius: 12px;
+            height: 55px;
+            border: 1px solid #ccc;
+        }
+
+        .role-slider input[type="radio"] {
+            display: none;
+        }
+
+        .slider-label {
+            flex: 1;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
             font-weight: 700;
-            flex-shrink: 0;
+            font-size: 18px;
+            color: #555;
+            transition: color 0.3s;
         }
-        .contacts-note {
-            color: #999;
-            font-size: 13px;
-            margin: -6px 0 14px;
+
+        .slider-tab {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: calc(50% - 5px);
+            height: calc(100% - 10px);
+            background: #1E90FF;
+            border-radius: 8px;
+            transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            z-index: 1;
         }
-        .form-section {
-            overflow-y: auto;
+
+        #owner:checked ~ .slider-tab    { transform: translateX(0); }
+        #caregiver:checked ~ .slider-tab { transform: translateX(100%); }
+
+        #owner:checked ~ label[for="owner"],
+        #caregiver:checked ~ label[for="caregiver"] {
+            color: white;
         }
-        /* Go Back — always blue, never grey */
+
+        /* Go Back link — always blue, never grey */
         .login-link a,
         .login-link a:visited,
         .login-link a:active,
@@ -61,34 +80,59 @@
     <div class="page-wrapper">
         <div class="hero-section">
             <h1>R.E.S.C.U.</h1>
-            <p>Almost there — add your emergency contacts.</p>
+            <p>Create your account to get started.</p>
         </div>
 
         <div class="form-section">
             <div class="form-container">
-                <form action="{{ url_for('signup_emergency') }}" method="POST">
-                    <h2>Emergency Contacts</h2>
-                    <p class="subtext">Who should we notify in an emergency?</p>
-                    <p class="contacts-note">Add up to 5 contacts. At least one is recommended.</p>
+                <form action="{{ url_for('signup_page') }}" method="post" onsubmit="return validateSignup()">
+                    <h2>Create Account</h2>
+                    <p class="subtext">Select your role and enter your details.</p>
 
-                    {% for i in range(1, 6) %}
-                    <div class="contact-row">
-                        <div class="contact-number">{{ i }}</div>
-                        <div class="contact-pair">
-                            <input type="text"  name="contact_name_{{ i }}"  placeholder="Full Name">
-                            <input type="email" name="contact_email_{{ i }}" placeholder="Email Address">
+                    <div class="role-slider-container">
+                        <div class="role-slider">
+                            <input type="radio" name="role" id="owner" value="owner" checked>
+                            <label for="owner" class="slider-label">Owner</label>
+                            <input type="radio" name="role" id="caregiver" value="caregiver">
+                            <label for="caregiver" class="slider-label">Caregiver</label>
+                            <div class="slider-tab"></div>
                         </div>
                     </div>
-                    {% endfor %}
 
-                    <button type="submit" style="margin-top: 10px;">Save &amp; Continue →</button>
+                    <input type="text" name="first_name" placeholder="First Name" required>
+                    <input type="text" name="last_name" placeholder="Last Name" required>
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="email" name="email" placeholder="Email Address" required>
+                    <input type="password" name="password" id="password" placeholder="Password" required>
+                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
+
+                    {% if error %}
+                    <div class="error show">{{ error }}</div>
+                    {% endif %}
+                    <div class="error" id="pw-error">Passwords do not match.</div>
+
+                    <button type="submit">Sign Up</button>
                 </form>
 
                 <p class="login-link">
-                    <a href="{{ url_for('signup_page') }}">← Go Back</a>
+                    <a href="{{ url_for('index') }}">← Go Back</a>
                 </p>
             </div>
         </div>
     </div>
+
+    <script>
+        function validateSignup() {
+            const pw  = document.getElementById('password').value;
+            const cpw = document.getElementById('confirm_password').value;
+            const err = document.getElementById('pw-error');
+            if (pw !== cpw) {
+                err.classList.add('show');
+                return false;
+            }
+            err.classList.remove('show');
+            return true;
+        }
+    </script>
 </body>
 </html>

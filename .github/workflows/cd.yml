@@ -6,6 +6,7 @@ on:
       - main
       - ci-cd-pipeline
       - store-login
+      - frontend
 
 permissions:
   id-token: write

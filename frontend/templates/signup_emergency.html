@@ -81,6 +81,10 @@
                     </div>
                     {% endfor %}
 
+                    {% if error %}
+                    <div class="error show">{{ error }}</div>
+                    {% endif %}
+
                     <button type="submit" style="margin-top: 10px;">Save &amp; Continue →</button>
                 </form>
 

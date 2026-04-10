@@ -1,23 +1,132 @@
 /* =========================================
-   Persistent "Go Back" Link (Never turns grey)
+   1. General Reset & Base Styles
    ========================================= */
-.login-link a, 
-.login-link a:visited, 
-.login-link a:active, 
-.login-link a:focus {
-    color: #1E90FF !important; /* Forces the blue color always */
-    text-decoration: none;
-    font-weight: 700;
-    outline: none;
+* {
+    box-sizing: border-box;
 }
 
-.login-link a:hover {
-    text-decoration: underline;
-    color: #104E8B !important;
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #f4f7f6;
+    color: #333;
 }
 
 /* =========================================
-   Role Slider Styling
+   2. Page Layout (Split Screen)
+   ========================================= */
+.page-wrapper {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+.hero-section {
+    flex: 1.2;
+    background: linear-gradient(135deg, #1E90FF, #800080);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    padding: 40px;
+    text-align: center;
+}
+
+.hero-section h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(50px, 8vw, 90px);
+    margin: 0;
+    letter-spacing: 4px;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.hero-section p {
+    font-size: 20px;
+    opacity: 0.9;
+    margin-top: 15px;
+    max-width: 800px;
+    line-height: 1.4;
+    white-space: nowrap; /* Keeps branding on one line */
+}
+
+.form-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    overflow-y: auto;
+    padding: 40px 20px;
+}
+
+.form-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+/* =========================================
+   3. Form Elements
+   ========================================= */
+form h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: #222;
+}
+
+.subtext {
+    color: #777;
+    margin-bottom: 25px;
+    font-size: 16px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="tel"],
+input[type="email"] {
+    width: 100%;
+    padding: 14px 16px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
+}
+
+input:focus {
+    outline: none;
+    border-color: #1E90FF;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 8px;
+    background: #1E90FF;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.3s;
+}
+
+button:hover {
+    background: #104E8B;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* =========================================
+   4. Role Slider Styling (Signup Only)
    ========================================= */
 .role-slider-container {
     display: flex;
@@ -52,7 +161,6 @@
     transition: color 0.3s ease;
 }
 
-/* The sliding background pill */
 .slider-tab {
     position: absolute;
     top: 4px;
@@ -66,17 +174,63 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* Slider Logic */
-#owner:checked ~ .slider-tab {
-    transform: translateX(0);
-}
+#owner:checked ~ .slider-tab { transform: translateX(0); }
+#caregiver:checked ~ .slider-tab { transform: translateX(100%); }
 
-#caregiver:checked ~ .slider-tab {
-    transform: translateX(100%);
-}
-
-/* Label color change when active */
 #owner:checked ~ label[for="owner"],
 #caregiver:checked ~ label[for="caregiver"] {
     color: white;
+}
+
+/* =========================================
+   5. Persistent "Go Back" / Links
+   ========================================= */
+.login-link, .signup-text {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 15px;
+}
+
+/* Forces the link to stay blue even after being clicked */
+.login-link a, 
+.login-link a:visited, 
+.login-link a:active {
+    color: #1E90FF !important;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.signup-text a {
+    color: #1E90FF;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.login-link a:hover, .signup-text a:hover {
+    text-decoration: underline;
+}
+
+/* Error Messages */
+.error {
+    color: #d9534f;
+    font-size: 14px;
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff0f0;
+    border-left: 4px solid #d9534f;
+    border-radius: 4px;
+    display: none;
+}
+
+.error.show { display: block; }
+
+/* =========================================
+   6. Responsiveness
+   ========================================= */
+@media (max-width: 850px) {
+    .page-wrapper { flex-direction: column; }
+    .hero-section { flex: 0.4; padding: 30px 20px; }
+    .hero-section h1 { font-size: 40px; }
+    .hero-section p { white-space: normal; font-size: 16px; }
+    .form-section { padding-top: 40px; }
 }

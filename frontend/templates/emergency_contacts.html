@@ -2,76 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Manage Emergency Contacts</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='emergency_contacts.css') }}">
+    <title>Emergency Contacts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Widen card for two inputs per row */
+        .page-card { max-width: 620px; }
+    </style>
 </head>
 <body>
-<div class="main-wrapper">
-    <header class="hero-section">
-        <h1>Emergency Contacts</h1>
-        <p>Add, Remove, or Edit your Emergency Contacts</p>
+<div class="inner-wrapper">
+
+    <header class="page-header">
+        <p class="site-name">R.E.S.C.U.</p>
+        <h2>Emergency Contacts</h2>
+        <p>Add, remove, or reorder who gets notified.</p>
     </header>
 
-    <div class="contacts-manager-card">
-        <form action="{{ url_for('edit_emergency_contacts') }}" method="POST" id="contacts-form">
+    <div class="page-card">
+        <form id="contacts-form" action="{{ url_for('edit_emergency_contacts') }}" method="POST">
+
             <div id="contact-list">
                 {% for contact in contacts %}
                 <div class="contact-row">
-                    <span class="rank-number">{{ loop.index }}</span>
-                    
+                    <span class="rank-badge">{{ loop.index }}</span>
                     <div class="order-controls">
-                        <button type="button" class="move-btn" onclick="moveUp(this)">▲</button>
-                        <button type="button" class="move-btn" onclick="moveDown(this)">▼</button>
+                        <button type="button" onclick="moveUp(this)">▲</button>
+                        <button type="button" onclick="moveDown(this)">▼</button>
                     </div>
-                    
-                    <input type="text" name="contact_name" value="{{ contact.name }}" placeholder="Name" required>
-                    <input type="email" name="contact_email" value="{{ contact.email }}" placeholder="Email Address" required>
-                    
+                    <input type="text"  name="contact_name"  value="{{ contact.name }}"  placeholder="Full Name"      required>
+                    <input type="email" name="contact_email" value="{{ contact.email }}" placeholder="Email Address"  required>
                     <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
                 </div>
                 {% endfor %}
             </div>
 
-            <div class="form-footer">
-                <button type="button" class="secondary-btn" onclick="addContactRow()">+ Add New</button>
-                <button type="submit" class="save-btn" id="save-btn">Save Changes</button>
-            </div>
-
-            <div class="go-back-wrapper">
-                <a href="{{ url_for('home') }}" class="go-back-btn">&#8592; Go Back</a>
+            <div class="contacts-footer">
+                <button type="button" class="btn-secondary" onclick="addRow()">+ Add Contact</button>
+                <button type="submit" class="btn-save" id="save-btn">Save Changes</button>
             </div>
         </form>
     </div>
+
+    <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
 </div>
 
 <script>
 function updateRanks() {
-    const rows = document.querySelectorAll('.contact-row');
-    rows.forEach((row, index) => {
-        const rankSpan = row.querySelector('.rank-number');
-        if (rankSpan) {
-            rankSpan.innerText = index + 1;
-        }
+    document.querySelectorAll('.contact-row').forEach((row, i) => {
+        const badge = row.querySelector('.rank-badge');
+        if (badge) badge.textContent = i + 1;
     });
 }
 
-function addContactRow() {
+function addRow() {
     const list = document.getElementById('contact-list');
-    
-    if (list.children.length >= 5) {
-        alert("Maximum of 5 contacts allowed.");
-        return;
-    }
-    
+    if (list.children.length >= 5) { alert('Maximum of 5 contacts allowed.'); return; }
     const row = document.createElement('div');
     row.className = 'contact-row';
     row.innerHTML = `
-        <span class="rank-number"></span>
+        <span class="rank-badge"></span>
         <div class="order-controls">
-            <button type="button" class="move-btn" onclick="moveUp(this)">▲</button>
-            <button type="button" class="move-btn" onclick="moveDown(this)">▼</button>
+            <button type="button" onclick="moveUp(this)">▲</button>
+            <button type="button" onclick="moveDown(this)">▼</button>
         </div>
-        <input type="text" name="contact_name" placeholder="Name" required>
+        <input type="text"  name="contact_name"  placeholder="Full Name"     required>
         <input type="email" name="contact_email" placeholder="Email Address" required>
         <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
     `;
@@ -80,48 +75,30 @@ function addContactRow() {
 }
 
 function removeRow(btn) {
-    const row = btn.closest('.contact-row');
-    row.remove();
+    btn.closest('.contact-row').remove();
     updateRanks();
 }
 
 function moveUp(btn) {
     const row = btn.closest('.contact-row');
-    const previous = row.previousElementSibling;
-    if (previous) {
-        row.parentNode.insertBefore(row, previous);
-        updateRanks();
-    }
+    const prev = row.previousElementSibling;
+    if (prev) { row.parentNode.insertBefore(row, prev); updateRanks(); }
 }
 
 function moveDown(btn) {
     const row = btn.closest('.contact-row');
     const next = row.nextElementSibling;
-    if (next) {
-        row.parentNode.insertBefore(next, row);
-        updateRanks();
-    }
+    if (next) { row.parentNode.insertBefore(next, row); updateRanks(); }
 }
 
 window.onload = updateRanks;
 
-function triggerSaveFeedback() {
-    const btn = document.getElementById('save-btn');
-    btn.classList.add('saving');
-    btn.textContent = '✓ Saved!';
-    setTimeout(() => {
-        btn.classList.remove('saving');
-        btn.textContent = 'Save Changes';
-    }, 1000);
-}
-
 document.getElementById('contacts-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    triggerSaveFeedback();
-    const form = this;
-    setTimeout(() => {
-        form.submit();
-    }, 1000);
+    const btn = document.getElementById('save-btn');
+    btn.textContent = '✓ Saved!';
+    btn.classList.add('saved');
+    setTimeout(() => { btn.classList.remove('saved'); btn.textContent = 'Save Changes'; this.submit(); }, 900);
 });
 </script>
 </body>

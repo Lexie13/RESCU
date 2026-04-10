@@ -7,18 +7,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Change background to top-to-bottom gradient */
+        /* Top-to-bottom gradient */
         .inner-wrapper.vertical-bg {
             background: linear-gradient(180deg, #1E90FF, #800080);
         }
 
-        /* Resize header text to be larger */
+        /* Large Header Text */
         .page-header h2 {
             font-size: clamp(2.2rem, 6vw, 3.2rem);
             margin-bottom: 10px;
         }
 
-        /* --- Sliding Role Toggle Styles --- */
+        /* Role Slider Toggle */
         .role-slider-container {
             background: #f1f1f1;
             border-radius: 30px;
@@ -30,11 +30,7 @@
             height: 50px;
             align-items: center;
         }
-
-        .role-slider-container input[type="radio"] {
-            display: none;
-        }
-
+        .role-slider-container input[type="radio"] { display: none; }
         .role-slider-container label {
             flex: 1;
             z-index: 2;
@@ -45,7 +41,6 @@
             transition: color 0.3s;
             font-size: 15px;
         }
-
         .role-slider-container .slider-thumb {
             position: absolute;
             top: 4px;
@@ -58,14 +53,27 @@
             z-index: 1;
             box-shadow: 0 2px 8px rgba(30,144,255,0.3);
         }
-
-        /* Shift thumb and change text color based on selection */
-        #role-caregiver:checked ~ .slider-thumb {
-            transform: translateX(100%);
-        }
-
+        #role-caregiver:checked ~ .slider-thumb { transform: translateX(100%); }
         #role-owner:checked ~ label[for="role-owner"],
-        #role-caregiver:checked ~ label[for="role-caregiver"] {
+        #role-caregiver:checked ~ label[for="role-caregiver"] { color: white; }
+
+        /* Delete Account Button Styling */
+        .btn-danger {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 25px;
+            background: transparent;
+            color: #d9534f;
+            border: 1px solid #d9534f;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-danger:hover {
+            background: #d9534f;
             color: white;
         }
     </style>
@@ -107,10 +115,6 @@
                 </div>
             </div>
 
-            <label class="field-label" for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone"
-                   value="{{ user.phone or '' }}" placeholder="Phone Number" required>
-
             <label class="field-label" for="email">Email Address</label>
             <input type="email" id="email" name="email"
                    value="{{ user.email or '' }}" placeholder="Email Address" required>
@@ -141,6 +145,8 @@
 
             <button type="submit" class="btn-primary" id="save-btn">Save Changes</button>
         </form>
+
+        <button type="button" class="btn-danger" onclick="confirmDelete()">Delete Account</button>
     </div>
 
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
@@ -170,6 +176,13 @@ function validateForm() {
         }
     }
     return true;
+}
+
+function confirmDelete() {
+    if (confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
+        // Logic to trigger the DELETE route in your Lambda handler
+        window.location.href = "{{ url_for('delete_account_route') }}"; 
+    }
 }
 
 document.getElementById('profile-form').addEventListener('submit', function(e) {

@@ -30,7 +30,6 @@ def signup():
         "password":   request.form.get("password"),
         "first_name": request.form.get("first_name"),
         "last_name":  request.form.get("last_name"),
-        "phone":      request.form.get("phone"),
         "email":      request.form.get("email"),
         "role":       request.form.get("role", "owner"),
     }
@@ -179,7 +178,6 @@ def edit_profile():
         updated_profile = {
             "first_name": request.form.get("first_name", profile.get("first_name", "")).strip(),
             "last_name":  request.form.get("last_name",  profile.get("last_name",  "")).strip(),
-            "phone":      request.form.get("phone",      profile.get("phone",      "")).strip(),
             "email":      request.form.get("email",      profile.get("email",      "")).strip(),
             "role":       request.form.get("role",       profile.get("role", "owner")),
         }

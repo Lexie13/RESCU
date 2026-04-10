@@ -62,23 +62,64 @@ body, html {
 }
 
 /* =========================================
-   3. Inputs & Buttons
+   3. Role Slider Component
    ========================================= */
-form h2 {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 32px;
-    margin-bottom: 8px;
+.role-slider-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 25px;
 }
 
-.subtext {
-    color: #777;
-    margin-bottom: 30px;
+.role-slider {
+    position: relative;
+    display: flex;
+    width: 100%;
+    background: #eee;
+    padding: 4px;
+    border-radius: 12px;
+    height: 50px;
+    user-select: none;
 }
 
-input[type="text"], input[type="password"] {
+.role-slider input[type="radio"] { display: none; }
+
+.slider-label {
+    flex: 1;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 700;
+    color: #666;
+    transition: color 0.3s;
+}
+
+.slider-tab {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: #1E90FF;
+    border-radius: 10px;
+    transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    z-index: 1;
+}
+
+#owner:checked ~ .slider-tab { transform: translateX(0); }
+#caregiver:checked ~ .slider-tab { transform: translateX(100%); }
+#owner:checked ~ label[for="owner"], #caregiver:checked ~ label[for="caregiver"] { color: white; }
+
+/* =========================================
+   4. Form Elements
+   ========================================= */
+form h2 { font-family: 'Montserrat', sans-serif; font-size: 32px; margin-bottom: 8px; }
+.subtext { color: #777; margin-bottom: 20px; }
+
+input[type="text"], input[type="password"], input[type="tel"] {
     width: 100%;
     padding: 14px 16px;
-    margin: 10px 0;
+    margin: 8px 0;
     border-radius: 8px;
     border: 1px solid #ddd;
     font-size: 16px;
@@ -88,7 +129,7 @@ input[type="text"], input[type="password"] {
 button {
     width: 100%;
     padding: 15px;
-    margin-top: 20px;
+    margin-top: 15px;
     border: none;
     border-radius: 8px;
     background: #1E90FF;
@@ -96,26 +137,25 @@ button {
     font-size: 18px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.3s;
 }
 
-button:hover { background: #104E8B; }
-
 /* =========================================
-   4. Links
+   5. Persistent "Go Back" Link
    ========================================= */
-.signup-text {
-    margin-top: 30px;
+.login-link {
+    margin-top: 25px;
     text-align: center;
 }
 
-.signup-text a {
-    color: #1E90FF;
+.login-link a, 
+.login-link a:visited, 
+.login-link a:active {
+    color: #1E90FF !important; /* Never turns grey */
     text-decoration: none;
     font-weight: 700;
 }
 
-.signup-text a:hover { text-decoration: underline; }
+.login-link a:hover { text-decoration: underline; }
 
 /* Responsive */
 @media (max-width: 850px) {

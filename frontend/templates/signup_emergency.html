@@ -2,24 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Emergency Contacts</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R.E.S.C.U. Emergency Contacts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .contact-pair {
+            display: flex;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .contact-pair input {
+            margin: 0;
+            flex: 1;
+        }
+        .contact-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background: #1E90FF;
+            color: white;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+        .contacts-note {
+            color: #999;
+            font-size: 13px;
+            margin: -6px 0 14px;
+        }
+        .form-section {
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
-    <div class="form-container" style="width: 500px;">
-        <h2>Emergency Contacts</h2>
-        <p style="color: #666; margin-bottom: 20px;">Please add up to 5 contacts.</p>
-        
-        <form action="{{ url_for('signup_emergency') }}" method="POST">
-            {% for i in range(1, 6) %}
-            <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 10px;">
-                <input type="text" name="contact_name_{{ i }}" placeholder="Contact {{ i }} Name" style="width: 50%;">
-                <input type="email" name="contact_email_{{ i }}" placeholder="Email Address" style="width: 50%;">
+    <div class="page-wrapper">
+        <div class="hero-section">
+            <h1>R.E.S.C.U.</h1>
+            <p>Almost there — add your emergency contacts.</p>
+        </div>
+
+        <div class="form-section">
+            <div class="form-container">
+                <form action="{{ url_for('signup_emergency') }}" method="POST">
+                    <h2>Emergency Contacts</h2>
+                    <p class="subtext">Who should we notify in an emergency?</p>
+                    <p class="contacts-note">Add up to 5 contacts. At least one is recommended.</p>
+
+                    {% for i in range(1, 6) %}
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <div class="contact-number">{{ i }}</div>
+                        <div class="contact-pair" style="flex: 1;">
+                            <input type="text" name="contact_name_{{ i }}" placeholder="Full Name">
+                            <input type="email" name="contact_email_{{ i }}" placeholder="Email Address">
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <button type="submit" style="margin-top: 10px;">Save &amp; Continue →</button>
+                </form>
+
+                <p class="login-link">
+                    <a href="{{ url_for('signup_page') }}">← Go Back</a>
+                </p>
             </div>
-            {% endfor %}
-            
-            <button type="submit" style="margin-top: 20px;">Save & Continue</button>
-        </form>
+        </div>
     </div>
 </body>
 </html>

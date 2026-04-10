@@ -5,17 +5,25 @@
     <title>R.E.S.C.U. Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Specific overrides for this page */
+        .page-header h2 {
+            font-size: 2.8rem; /* Larger font size */
+            margin-top: 10px;
+        }
+        /* Custom status colors */
+        .status-red { color: #ff4d4d !important; }
+        .status-green { color: #2ecc71 !important; }
+    </style>
 </head>
 <body>
 <div class="inner-wrapper">
 
     <header class="page-header">
-        <p class="site-name">R.E.S.C.U.</p>
         <h2>Welcome, {{ username }}!</h2>
         <p>{{ email }}</p>
     </header>
 
-    <!-- Device status -->
     <div class="status-row">
         <div class="status-card">
             <div class="s-label">Battery</div>
@@ -23,14 +31,12 @@
         </div>
         <div class="status-card">
             <div class="s-label">Connection</div>
-            <div id="connection-status" class="s-value">{{ device.status }}</div>
+            <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
         </div>
     </div>
 
-    <!-- BLE connect -->
     <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
 
-    <!-- Nav -->
     <div style="width:100%; max-width:520px;">
         <a href="{{ url_for('edit_profile') }}" class="nav-card">
             <span>Account Info</span>
@@ -64,13 +70,17 @@ const statusEl   = document.getElementById('connection-status');
 connectBtn.addEventListener('click', async () => {
     try {
         statusEl.textContent = 'Searching…';
+        statusEl.className = 's-value'; // Reset colors while searching
+
         const device = await navigator.bluetooth.requestDevice({
             filters: [{ name: 'RESCU_DEVICE' }],
             optionalServices: [BATTERY_SERVICE_UUID]
         });
         const server  = await device.gatt.connect();
+        
         statusEl.textContent = 'Connected';
-        statusEl.classList.add('connected');
+        statusEl.classList.add('status-green');
+        statusEl.classList.remove('status-red');
 
         const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
         const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
@@ -88,12 +98,14 @@ connectBtn.addEventListener('click', async () => {
 
         device.addEventListener('gattserverdisconnected', () => {
             statusEl.textContent = 'Disconnected';
-            statusEl.classList.remove('connected');
+            statusEl.classList.add('status-red');
+            statusEl.classList.remove('status-green');
             batteryEl.textContent = '--';
         });
     } catch (err) {
         console.error('BLE Error:', err);
         statusEl.textContent = 'Error';
+        statusEl.classList.add('status-red');
     }
 });
 </script>

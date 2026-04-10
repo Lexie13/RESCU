@@ -1,283 +1,202 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
     <title>R.E.S.C.U. Home</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
-
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-
         /* Forces the top-to-bottom gradient to fill the entire screen */
-
         body, html {
-
             background: linear-gradient(to bottom, #1E90FF, #800080) !important;
-
             margin: 0;
-
             min-height: 100%;
-
             font-family: 'Roboto', sans-serif;
-
         }
 
-    
-
-        /* Centers the content and defines the maximum width for the dashboard */
-
+        /* Expands the wrapper to fill the space better while keeping things in a line */
         .inner-wrapper {
-
             min-height: 100vh;
-
             display: flex;
-
             flex-direction: column;
-
             align-items: center;
-
-            padding: 48px 20px 60px;
-
+            padding: 60px 20px;
             width: 100%;
-
-            max-width: 800px; /* Limits width so it doesn't look stretched on wide screens */
-
+            max-width: 700px; 
             margin: 0 auto;
-
         }
 
-    
-
-        /* Standardizes width for cards and buttons */
-
-        .nav-card, .status-row, .btn-ble {
-
-            max-width: 520px; /* Reverted to original compact size */
-
-            width: 100%;
-
-        }
-
-    
-
-        /* Header styling overrides */
-
+        /* Header styling */
         .page-header h2 {
-
-            font-size: 2.8rem;
-
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
             margin-top: 10px;
-
+            text-align: center;
+            color: white;
+        }
+        
+        .page-header p {
+            text-align: center;
+            color: white;
+            opacity: 0.9;
         }
 
-    
+        /* Standardizing widths for the vertical stack */
+        .status-row, 
+        .btn-ble, 
+        .nav-container,
+        .nav-card {
+            width: 100%;
+            max-width: 600px;
+        }
 
-        /* Original vivid status colors */
+        /* Enhanced Nav Cards for better vertical presence */
+        .nav-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 12px;
+            padding: 24px 28px;
+            text-decoration: none;
+            color: #1E90FF;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.15s, box-shadow 0.15s;
+            margin-bottom: 16px;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
 
+        /* Connect Button - Fixed Purple */
+        .btn-ble {
+            background: #800080 !important; 
+            color: white !important;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s !important;
+            margin-bottom: 24px;
+        }
+
+        /* Hover & Active states: No color change, just motion */
+        .btn-ble:hover {
+            background: #800080 !important; 
+            transform: translateY(-2px);
+        }
+
+        .btn-ble:active {
+            background: #800080 !important;
+            transform: scale(0.98);
+        }
+
+        /* Status card specific colors */
         .status-red { color: #ff4d4d !important; }
-
         .status-green { color: #2ecc71 !important; }
 
+        @media (max-width: 600px) {
+            .status-row { flex-direction: column; width: 100%; }
+        }
     </style>
-
 </head>
-
 <body>
-
-    <div class="sidebar left-sidebar"></div>
-
-    <div class="sidebar right-sidebar"></div>
-
-
-
     <div class="inner-wrapper">
-
         <header class="page-header">
-
             <h2>Welcome, {{ username }}!</h2>
-
             <p>{{ email }}</p>
-
         </header>
 
-
-
         <div class="status-row">
-
             <div class="status-card">
-
                 <div class="s-label">Battery</div>
-
                 <div id="battery-val" class="s-value">{{ device.battery }}</div>
-
             </div>
-
             <div class="status-card">
-
                 <div class="s-label">Connection</div>
-
                 <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
-
             </div>
-
         </div>
-
-
 
         <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
 
-
-
-        <div style="width:100%; max-width:520px;">
-
+        <div class="nav-container">
             <a href="{{ url_for('edit_profile') }}" class="nav-card">
-
                 <span>Account Info</span>
-
                 <span class="arrow">→</span>
-
             </a>
-
             <a href="{{ url_for('device_status') }}" class="nav-card">
-
                 <span>Device Settings</span>
-
                 <span class="arrow">→</span>
-
             </a>
-
             <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
-
                 <span>Emergency Contacts</span>
-
                 <span class="arrow">→</span>
-
             </a>
-
             <a href="{{ url_for('fall_history') }}" class="nav-card">
-
                 <span>Fall History</span>
-
                 <span class="arrow">→</span>
-
             </a>
-
         </div>
 
-
-
         <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
-
     </div>
 
-
-
     <script>
-
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
-
     const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
-
-
     const connectBtn = document.getElementById('connect-ble');
-
     const batteryEl  = document.getElementById('battery-val');
-
     const statusEl   = document.getElementById('connection-status');
 
-
-
     connectBtn.addEventListener('click', async () => {
-
         try {
-
             statusEl.textContent = 'Searching…';
-
             statusEl.className = 's-value';
 
-
-
             const device = await navigator.bluetooth.requestDevice({
-
                 filters: [{ name: 'RESCU_DEVICE' }],
-
                 optionalServices: [BATTERY_SERVICE_UUID]
-
             });
-
             const server  = await device.gatt.connect();
-
             
-
             statusEl.textContent = 'Connected';
-
             statusEl.classList.add('status-green');
-
             statusEl.classList.remove('status-red');
 
-
-
             const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
-
             const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
-
             await characteristic.startNotifications();
 
-
-
             characteristic.addEventListener('characteristicvaluechanged', (e) => {
-
                 try {
-
                     const data = JSON.parse(new TextDecoder().decode(e.target.value));
-
                     if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
-
                 } catch (err) { console.error('Parse error:', err); }
-
             });
-
-
 
             const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
-
             batteryEl.textContent = initial.battery_pct + '%';
 
-
-
             device.addEventListener('gattserverdisconnected', () => {
-
                 statusEl.textContent = 'Disconnected';
-
                 statusEl.classList.add('status-red');
-
                 statusEl.classList.remove('status-green');
-
                 batteryEl.textContent = '--';
-
             });
-
         } catch (err) {
-
             console.error('BLE Error:', err);
-
             statusEl.textContent = 'Error';
-
             statusEl.classList.add('status-red');
-
         }
-
     });
-
     </script>
-
 </body>
-
 </html>

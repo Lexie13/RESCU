@@ -1,0 +1,385 @@
+/* inner.css — shared styles for all post-login pages */
+
+* { box-sizing: border-box; }
+
+body, html {
+    min-height: 100%;
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #1E90FF, #800080);
+    color: #333;
+}
+
+/* ── Page shell ── */
+.inner-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px 60px;
+}
+
+/* ── Page header ── */
+.page-header {
+    text-align: center;
+    margin-bottom: 32px;
+    color: white;
+}
+
+.page-header .site-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    letter-spacing: 3px;
+    margin: 0 0 4px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.page-header h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(1.4rem, 3.5vw, 2rem);
+    margin: 0 0 6px;
+}
+
+.page-header p {
+    opacity: 0.85;
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* ── White card ── */
+.page-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    width: 100%;
+    max-width: 520px;
+    padding: 36px 40px;
+}
+
+/* ── Inputs ── */
+.page-card input[type="text"],
+.page-card input[type="tel"],
+.page-card input[type="email"],
+.page-card input[type="password"] {
+    width: 100%;
+    padding: 14px 16px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    font-family: 'Roboto', sans-serif;
+    background: #fafafa;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    color: #333;
+}
+
+.page-card input:focus {
+    outline: none;
+    border-color: #1E90FF;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(30,144,255,0.1);
+}
+
+/* ── Field label ── */
+.field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    margin: 14px 0 2px;
+}
+
+/* ── Side-by-side field row ── */
+.field-row {
+    display: flex;
+    gap: 12px;
+}
+.field-row > * { flex: 1; }
+
+/* ── Primary button ── */
+.page-card .btn-primary {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 8px;
+    background: #1E90FF;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background 0.25s, transform 0.1s;
+}
+.page-card .btn-primary:hover { background: #104E8B; }
+.page-card .btn-primary:active { transform: scale(0.98); }
+
+/* ── Secondary / ghost button ── */
+.btn-secondary {
+    background: transparent;
+    border: 1px solid #1E90FF;
+    color: #1E90FF;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-secondary:hover { background: #1E90FF; color: white; }
+
+/* ── Save / success button ── */
+.btn-save {
+    background: #1E90FF;
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background 0.25s, transform 0.1s;
+}
+.btn-save:hover { background: #104E8B; }
+.btn-save:active { transform: scale(0.97); }
+.btn-save.saved { background: #2ed573; cursor: default; }
+
+/* ── Role toggle ── */
+.role-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0 4px;
+}
+.role-buttons input[type="radio"] { display: none; }
+.role-buttons label {
+    flex: 1;
+    text-align: center;
+    padding: 11px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #666;
+    background: #f9f9f9;
+    transition: all 0.2s;
+}
+.role-buttons input[type="radio"]:checked + label {
+    background: #1E90FF;
+    color: white;
+    border-color: #1E90FF;
+    box-shadow: 0 3px 10px rgba(30,144,255,0.25);
+}
+
+/* ── Divider ── */
+.page-card hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 20px 0;
+}
+
+/* ── Error ── */
+.error-msg {
+    color: #d9534f;
+    font-size: 14px;
+    padding: 10px 14px;
+    background: #fff0f0;
+    border-left: 3px solid #d9534f;
+    border-radius: 4px;
+    margin-top: 10px;
+    display: none;
+}
+.error-msg.show { display: block; }
+
+/* ── Back link ── */
+.back-link {
+    display: inline-block;
+    margin-top: 22px;
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: color 0.2s, background 0.2s;
+}
+.back-link:hover {
+    color: white;
+    background: rgba(255,255,255,0.15);
+}
+
+/* ── Password reveal section ── */
+.password-section { margin-top: 4px; }
+.password-fields {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+.password-fields.open { max-height: 260px; opacity: 1; }
+
+/* ── Contact row ── */
+.contact-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f8f9fb;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.contact-row input[type="text"],
+.contact-row input[type="email"] {
+    flex: 1;
+    margin: 0;
+    background: white;
+}
+.rank-badge {
+    min-width: 30px;
+    height: 30px;
+    background: #1E90FF;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.order-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.order-controls button {
+    background: none;
+    border: 1px solid #ddd;
+    color: #aaa;
+    border-radius: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+.order-controls button:hover { background: #eee; color: #555; }
+.delete-btn {
+    background: none;
+    border: 1px solid #ffcdd2;
+    color: #e53935;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background 0.15s;
+}
+.delete-btn:hover { background: #ffebee; }
+
+/* ── Contacts footer row ── */
+.contacts-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+}
+
+/* ── Home page nav items ── */
+.nav-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border-radius: 10px;
+    padding: 18px 22px;
+    text-decoration: none;
+    color: #1E90FF;
+    font-weight: 700;
+    font-size: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin-bottom: 12px;
+}
+.nav-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.nav-card .arrow { font-size: 1.3rem; color: #bbb; }
+
+/* ── Status cards ── */
+.status-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 520px;
+}
+.status-card {
+    flex: 1;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(6px);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    color: white;
+}
+.status-card .s-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+}
+.status-card .s-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+.s-value.connected { color: #5fffb0; }
+
+/* ── Connect BLE button ── */
+.btn-ble {
+    display: block;
+    width: 100%;
+    max-width: 520px;
+    padding: 15px;
+    margin-bottom: 16px;
+    border: none;
+    border-radius: 10px;
+    background: #800080;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    transition: background 0.25s, transform 0.1s;
+}
+.btn-ble:hover { background: #2ed573; transform: translateY(-1px); }
+
+/* ── Logout ── */
+.logout-link {
+    display: inline-block;
+    margin-top: 32px;
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.6);
+    padding: 10px 28px;
+    border-radius: 20px;
+    transition: background 0.2s, color 0.2s;
+}
+.logout-link:hover { background: white; color: #800080; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .page-card { padding: 24px 20px; }
+    .field-row { flex-direction: column; gap: 0; }
+    .status-row { flex-direction: column; }
+}

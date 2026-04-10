@@ -6,6 +6,75 @@
     <title>R.E.S.C.U. Signup</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Role slider */
+        .role-slider-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .role-slider {
+            position: relative;
+            display: flex;
+            width: 100%;
+            background: #f0f0f0;
+            padding: 5px;
+            border-radius: 12px;
+            height: 55px;
+            border: 1px solid #ccc;
+        }
+
+        .role-slider input[type="radio"] {
+            display: none;
+        }
+
+        .slider-label {
+            flex: 1;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 18px;
+            color: #555;
+            transition: color 0.3s;
+        }
+
+        .slider-tab {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: calc(50% - 5px);
+            height: calc(100% - 10px);
+            background: #1E90FF;
+            border-radius: 8px;
+            transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+            z-index: 1;
+        }
+
+        #owner:checked ~ .slider-tab    { transform: translateX(0); }
+        #caregiver:checked ~ .slider-tab { transform: translateX(100%); }
+
+        #owner:checked ~ label[for="owner"],
+        #caregiver:checked ~ label[for="caregiver"] {
+            color: white;
+        }
+
+        /* Go Back link — always blue, never grey */
+        .login-link a,
+        .login-link a:visited,
+        .login-link a:active,
+        .login-link a:hover {
+            color: #1E90FF !important;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="page-wrapper">
@@ -20,11 +89,14 @@
                     <h2>Create Account</h2>
                     <p class="subtext">Select your role and enter your details.</p>
 
-                    <div class="role-buttons">
-                        <input type="radio" name="role" id="owner" value="owner" checked>
-                        <label for="owner">Owner</label>
-                        <input type="radio" name="role" id="caregiver" value="caregiver">
-                        <label for="caregiver">Caregiver</label>
+                    <div class="role-slider-container">
+                        <div class="role-slider">
+                            <input type="radio" name="role" id="owner" value="owner" checked>
+                            <label for="owner" class="slider-label">Owner</label>
+                            <input type="radio" name="role" id="caregiver" value="caregiver">
+                            <label for="caregiver" class="slider-label">Caregiver</label>
+                            <div class="slider-tab"></div>
+                        </div>
                     </div>
 
                     <input type="text" name="first_name" placeholder="First Name" required>
@@ -51,7 +123,7 @@
 
     <script>
         function validateSignup() {
-            const pw = document.getElementById('password').value;
+            const pw  = document.getElementById('password').value;
             const cpw = document.getElementById('confirm_password').value;
             const err = document.getElementById('pw-error');
             if (pw !== cpw) {

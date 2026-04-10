@@ -5,12 +5,75 @@
     <title>Account Info</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Change background to top-to-bottom gradient */
+        .inner-wrapper.vertical-bg {
+            background: linear-gradient(180deg, #1E90FF, #800080);
+        }
+
+        /* Resize header text to be larger */
+        .page-header h2 {
+            font-size: clamp(2.2rem, 6vw, 3.2rem);
+            margin-bottom: 10px;
+        }
+
+        /* --- Sliding Role Toggle Styles --- */
+        .role-slider-container {
+            background: #f1f1f1;
+            border-radius: 30px;
+            position: relative;
+            display: flex;
+            padding: 4px;
+            margin: 10px 0 20px;
+            border: 1px solid #ddd;
+            height: 50px;
+            align-items: center;
+        }
+
+        .role-slider-container input[type="radio"] {
+            display: none;
+        }
+
+        .role-slider-container label {
+            flex: 1;
+            z-index: 2;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 700;
+            color: #666;
+            transition: color 0.3s;
+            font-size: 15px;
+        }
+
+        .role-slider-container .slider-thumb {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            background: #1E90FF;
+            border-radius: 26px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+            box-shadow: 0 2px 8px rgba(30,144,255,0.3);
+        }
+
+        /* Shift thumb and change text color based on selection */
+        #role-caregiver:checked ~ .slider-thumb {
+            transform: translateX(100%);
+        }
+
+        #role-owner:checked ~ label[for="role-owner"],
+        #role-caregiver:checked ~ label[for="role-caregiver"] {
+            color: white;
+        }
+    </style>
 </head>
 <body>
-<div class="inner-wrapper">
+<div class="inner-wrapper vertical-bg">
 
     <header class="page-header">
-        <p class="site-name">R.E.S.C.U.</p>
         <h2>Account Info</h2>
         <p>Update your personal details below.</p>
     </header>
@@ -18,18 +81,19 @@
     <div class="page-card">
         <form id="profile-form" action="{{ url_for('edit_profile') }}" method="POST" onsubmit="return validateForm()">
 
-            <!-- Role -->
             <label class="field-label">Role</label>
-            <div class="role-buttons">
-                <input type="radio" name="role" id="role-owner"     value="owner"
+            <div class="role-slider-container">
+                <input type="radio" name="role" id="role-owner" value="owner"
                        {% if user.role != 'caregiver' %}checked{% endif %}>
                 <label for="role-owner">Owner</label>
+
                 <input type="radio" name="role" id="role-caregiver" value="caregiver"
                        {% if user.role == 'caregiver' %}checked{% endif %}>
                 <label for="role-caregiver">Caregiver</label>
+                
+                <div class="slider-thumb"></div>
             </div>
 
-            <!-- Name -->
             <div class="field-row">
                 <div>
                     <label class="field-label" for="first_name">First Name</label>
@@ -43,24 +107,20 @@
                 </div>
             </div>
 
-            <!-- Phone -->
             <label class="field-label" for="phone">Phone Number</label>
             <input type="tel" id="phone" name="phone"
                    value="{{ user.phone or '' }}" placeholder="Phone Number" required>
 
-            <!-- Email -->
             <label class="field-label" for="email">Email Address</label>
             <input type="email" id="email" name="email"
                    value="{{ user.email or '' }}" placeholder="Email Address" required>
 
-            <!-- Username (display only) -->
             <label class="field-label">Username</label>
             <input type="text" value="{{ username }}" disabled
                    style="background:#f0f0f0; color:#999; cursor:not-allowed;">
 
             <hr>
 
-            <!-- Password -->
             <div class="password-section">
                 <label class="field-label">Password</label>
                 <button type="button" class="btn-secondary" onclick="togglePassword(this)">

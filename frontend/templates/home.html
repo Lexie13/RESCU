@@ -16,6 +16,44 @@
 
         /* Specific overrides for this page */
 
+        body {
+            position: relative;
+            overflow-x: hidden; /* Prevents decorative elements from causing horizontal scroll */
+        }
+    
+        /* Decorative white circles */
+        body::before, body::after {
+            content: "";
+            position: fixed;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.07); /* Subtle white transparency */
+            z-index: -1; /* Keeps them behind the content */
+        }
+    
+        /* Large circle on the top left */
+        body::before {
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -150px;
+        }
+    
+        /* Smaller circle on the bottom right */
+        body::after {
+            width: 300px;
+            height: 300px;
+            bottom: 50px;
+            right: -100px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+    
+        /* Responsive adjustment: hide or shrink them on small mobile screens */
+        @media (max-width: 600px) {
+            body::before, body::after {
+                display: none;
+            }
+        }
+
         .page-header h2 {
 
             font-size: 2.8rem; /* Larger font size */

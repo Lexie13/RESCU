@@ -1,147 +1,225 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>R.E.S.C.U. Home</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-</head>
-<body>
 
-<div id="particles-js"></div>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>R.E.S.C.U. Home</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
+
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+
+        /* Specific overrides for this page */
+
+        .page-header h2 {
+
+            font-size: 2.8rem; /* Larger font size */
+
+            margin-top: 10px;
+
+        }
+
+        /* Custom status colors */
+
+        .status-red { color: #ff4d4d !important; }
+
+        .status-green { color: #2ecc71 !important; }
+
+    </style>
+
+</head>
+
+<body>
 
 <div class="inner-wrapper">
 
+
+
     <header class="page-header">
+
         <h2>Welcome, {{ username }}!</h2>
+
         <p>{{ email }}</p>
+
     </header>
 
+
+
     <div class="status-row">
+
         <div class="status-card">
+
             <div class="s-label">Battery</div>
+
             <div id="battery-val" class="s-value">{{ device.battery }}</div>
+
         </div>
+
         <div class="status-card">
+
             <div class="s-label">Connection</div>
+
             <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
+
         </div>
+
     </div>
+
+
 
     <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
 
+
+
     <div style="width:100%; max-width:520px;">
+
         <a href="{{ url_for('edit_profile') }}" class="nav-card">
+
             <span>Account Info</span>
+
             <span class="arrow">→</span>
+
         </a>
+
         <a href="{{ url_for('device_status') }}" class="nav-card">
+
             <span>Device Settings</span>
+
             <span class="arrow">→</span>
+
         </a>
+
         <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
+
             <span>Emergency Contacts</span>
+
             <span class="arrow">→</span>
+
         </a>
+
         <a href="{{ url_for('fall_history') }}" class="nav-card">
+
             <span>Fall History</span>
+
             <span class="arrow">→</span>
+
         </a>
+
     </div>
 
+
+
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
 
 <script>
-/* ── Particles.js Initialization ── */
-particlesJS("particles-js", {
-  "particles": {
-    "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
-    "color": { "value": "#ffffff" },
-    "shape": { "type": "circle" },
-    "opacity": { "value": 0.3, "random": false },
-    "size": { "value": 3, "random": true },
-    "line_linked": {
-      "enable": true,
-      "distance": 150,
-      "color": "#ffffff",
-      "opacity": 0.2,
-      "width": 1
-    },
-    "move": {
-      "enable": true,
-      "speed": 1.5,
-      "direction": "none",
-      "random": false,
-      "straight": false,
-      "out_mode": "out",
-      "bounce": false
-    }
-  },
-  "interactivity": {
-    "detect_on": "canvas",
-    "events": {
-      "onhover": { "enable": true, "mode": "grab" },
-      "onclick": { "enable": false }
-    },
-    "modes": {
-      "grab": { "distance": 140, "line_linked": { "opacity": 0.8 } }
-    }
-  },
-  "retina_detect": true
-});
 
-/* ── Bluetooth Logic ── */
 const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
+
 const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
+
+
 const connectBtn = document.getElementById('connect-ble');
+
 const batteryEl  = document.getElementById('battery-val');
+
 const statusEl   = document.getElementById('connection-status');
 
+
+
 connectBtn.addEventListener('click', async () => {
+
     try {
+
         statusEl.textContent = 'Searching…';
-        statusEl.className = 's-value'; // Clear muted colors while searching
+
+        statusEl.className = 's-value'; // Reset colors while searching
+
+
 
         const device = await navigator.bluetooth.requestDevice({
+
             filters: [{ name: 'RESCU_DEVICE' }],
+
             optionalServices: [BATTERY_SERVICE_UUID]
+
         });
+
         const server  = await device.gatt.connect();
+
         
+
         statusEl.textContent = 'Connected';
-        statusEl.classList.remove('status-red');
+
         statusEl.classList.add('status-green');
 
+        statusEl.classList.remove('status-red');
+
+
+
         const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+
         const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
+
         await characteristic.startNotifications();
 
+
+
         characteristic.addEventListener('characteristicvaluechanged', (e) => {
+
             try {
+
                 const data = JSON.parse(new TextDecoder().decode(e.target.value));
+
                 if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
+
             } catch (err) { console.error('Parse error:', err); }
+
         });
+
+
 
         const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
+
         batteryEl.textContent = initial.battery_pct + '%';
 
+
+
         device.addEventListener('gattserverdisconnected', () => {
+
             statusEl.textContent = 'Disconnected';
-            statusEl.classList.remove('status-green');
+
             statusEl.classList.add('status-red');
+
+            statusEl.classList.remove('status-green');
+
             batteryEl.textContent = '--';
+
         });
+
     } catch (err) {
+
         console.error('BLE Error:', err);
+
         statusEl.textContent = 'Error';
+
         statusEl.classList.add('status-red');
+
     }
+
 });
+
 </script>
+
 </body>
+
 </html>

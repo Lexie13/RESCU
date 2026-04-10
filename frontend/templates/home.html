@@ -5,18 +5,11 @@
     <title>R.E.S.C.U. Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        /* Specific overrides for this page */
-        .page-header h2 {
-            font-size: 2.8rem; /* Larger font size */
-            margin-top: 10px;
-        }
-        /* Custom status colors */
-        .status-red { color: #ff4d4d !important; }
-        .status-green { color: #2ecc71 !important; }
-    </style>
 </head>
 <body>
+
+<div id="particles-js"></div>
+
 <div class="inner-wrapper">
 
     <header class="page-header">
@@ -59,7 +52,48 @@
     <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+
 <script>
+/* ── Particles.js Initialization ── */
+particlesJS("particles-js", {
+  "particles": {
+    "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
+    "color": { "value": "#ffffff" },
+    "shape": { "type": "circle" },
+    "opacity": { "value": 0.3, "random": false },
+    "size": { "value": 3, "random": true },
+    "line_linked": {
+      "enable": true,
+      "distance": 150,
+      "color": "#ffffff",
+      "opacity": 0.2,
+      "width": 1
+    },
+    "move": {
+      "enable": true,
+      "speed": 1.5,
+      "direction": "none",
+      "random": false,
+      "straight": false,
+      "out_mode": "out",
+      "bounce": false
+    }
+  },
+  "interactivity": {
+    "detect_on": "canvas",
+    "events": {
+      "onhover": { "enable": true, "mode": "grab" },
+      "onclick": { "enable": false }
+    },
+    "modes": {
+      "grab": { "distance": 140, "line_linked": { "opacity": 0.8 } }
+    }
+  },
+  "retina_detect": true
+});
+
+/* ── Bluetooth Logic ── */
 const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
 const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
@@ -70,7 +104,7 @@ const statusEl   = document.getElementById('connection-status');
 connectBtn.addEventListener('click', async () => {
     try {
         statusEl.textContent = 'Searching…';
-        statusEl.className = 's-value'; // Reset colors while searching
+        statusEl.className = 's-value'; // Clear muted colors while searching
 
         const device = await navigator.bluetooth.requestDevice({
             filters: [{ name: 'RESCU_DEVICE' }],
@@ -79,8 +113,8 @@ connectBtn.addEventListener('click', async () => {
         const server  = await device.gatt.connect();
         
         statusEl.textContent = 'Connected';
-        statusEl.classList.add('status-green');
         statusEl.classList.remove('status-red');
+        statusEl.classList.add('status-green');
 
         const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
         const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
@@ -98,8 +132,8 @@ connectBtn.addEventListener('click', async () => {
 
         device.addEventListener('gattserverdisconnected', () => {
             statusEl.textContent = 'Disconnected';
-            statusEl.classList.add('status-red');
             statusEl.classList.remove('status-green');
+            statusEl.classList.add('status-red');
             batteryEl.textContent = '--';
         });
     } catch (err) {

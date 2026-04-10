@@ -47,8 +47,9 @@ body, html {
     font-size: 20px;
     opacity: 0.9;
     margin-top: 15px;
-    max-width: 400px;
+    max-width: 800px; /* Increased to accommodate single line */
     line-height: 1.4;
+    white-space: nowrap; /* Forces text to stay on one line */
 }
 
 /* Right Side: Form Container Section */
@@ -58,7 +59,7 @@ body, html {
     justify-content: center;
     align-items: center;
     background: #ffffff;
-    overflow-y: auto; /* Allows scrolling if form is tall */
+    overflow-y: auto;
     padding: 40px 20px;
 }
 
@@ -87,12 +88,10 @@ form h2 {
     font-size: 16px;
 }
 
-/* Inputs & Selects */
 input[type="text"],
 input[type="password"],
 input[type="tel"],
-input[type="email"],
-select {
+input[type="email"] {
     width: 100%;
     padding: 14px 16px;
     margin: 10px 0;
@@ -110,7 +109,6 @@ input:focus {
     box-shadow: 0 0 0 4px rgba(30, 144, 255, 0.1);
 }
 
-/* Primary Action Button */
 button {
     width: 100%;
     padding: 15px;
@@ -188,7 +186,7 @@ button:active {
     display: block;
 }
 
-/* Footer Links (Signup/Login toggle) */
+/* Navigation Links (Go Back / Sign Up) */
 .signup-text,
 .login-link {
     margin-top: 30px;
@@ -202,10 +200,16 @@ button:active {
     color: #1E90FF;
     text-decoration: none;
     font-weight: 700;
+    transition: color 0.3s;
+}
+
+.login-link a {
+    color: #888; /* Subtle "Go Back" look */
 }
 
 .signup-text a:hover,
 .login-link a:hover {
+    color: #1E90FF;
     text-decoration: underline;
 }
 
@@ -227,6 +231,7 @@ button:active {
     }
 
     .hero-section p {
+        white-space: normal; /* Allow wrapping on mobile so text doesn't cut off */
         font-size: 16px;
         margin-top: 5px;
     }

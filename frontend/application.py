@@ -21,11 +21,9 @@ def index():
 @app.route("/signup", methods=["GET", "POST"])
 def signup_page():
     if request.method == "GET":
-        # Clear any stale signup session data so a fresh visit always shows the form
         session.pop("temp_signup_data", None)
         return render_template("signup.html")
 
-    # POST — collect form data and move to step 2
     session["temp_signup_data"] = {
         "username":   request.form.get("username"),
         "password":   request.form.get("password"),
@@ -60,37 +58,42 @@ def signup_emergency():
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
 
-            # Safely parse JSON — API may return a string or malformed body
+            print(f"[SIGNUP] Status: {response.status_code}")
+            print(f"[SIGNUP] Body: {response.text}")
+
             try:
                 data = response.json()
             except Exception:
                 data = {}
 
-            # Normalize: if the API returned a plain string instead of a dict, wrap it
             if not isinstance(data, dict):
                 data = {"message": str(data)}
 
-            if response.status_code == 201:
+            # Accept 200 or 201 as a successful registration
+            if response.status_code in (200, 201):
                 session.pop("temp_signup_data", None)
                 session["username"] = payload["username"]
                 session["user_id"]  = data.get("user_id")
 
-                # Fetch profile so dashboard loads correctly
                 try:
                     login_response = requests.post(
                         f"{API_GATEWAY_URL}/login",
                         json={"username": payload["username"], "password": payload["password"]},
                     )
+                    print(f"[LOGIN AFTER SIGNUP] Status: {login_response.status_code}")
+                    print(f"[LOGIN AFTER SIGNUP] Body: {login_response.text}")
+
                     if login_response.status_code == 200:
                         login_data = login_response.json()
                         if isinstance(login_data, dict):
                             session["profile"] = login_data.get("profile", {})
-                except Exception:
+                except Exception as e:
+                    print(f"[LOGIN AFTER SIGNUP] Failed: {e}")
                     session["profile"] = {}
 
                 return redirect(url_for("home"))
             else:
-                error_msg = data.get("error") or data.get("message") or f"Status {response.status_code}"
+                error_msg = data.get("error") or data.get("message") or f"Registration failed (status {response.status_code})"
                 return render_template("signup_emergency.html", error=error_msg)
 
         except Exception as e:

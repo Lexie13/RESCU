@@ -18,26 +18,24 @@ def index():
 # =========================
 # SIGNUP ROUTES
 # =========================
-@app.route("/signup", methods=["GET"])
+@app.route("/signup", methods=["GET", "POST"])
 def signup_page():
+    if request.method == "POST":
+        session["temp_signup_data"] = {
+            "username":   request.form.get("username"),
+            "password":   request.form.get("password"),
+            "first_name": request.form.get("first_name"),
+            "last_name":  request.form.get("last_name"),
+            "email":      request.form.get("email"),
+            "role":       request.form.get("role", "owner"),
+        }
+
+        if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
+            return render_template("signup.html", error="Please enter both username and password.")
+
+        return redirect(url_for("signup_emergency"))
+
     return render_template("signup.html")
-
-
-@app.route("/signup", methods=["POST"])
-def signup():
-    session["temp_signup_data"] = {
-        "username":   request.form.get("username"),
-        "password":   request.form.get("password"),
-        "first_name": request.form.get("first_name"),
-        "last_name":  request.form.get("last_name"),
-        "email":      request.form.get("email"),
-        "role":       request.form.get("role", "owner"),
-    }
-
-    if not session["temp_signup_data"]["username"] or not session["temp_signup_data"]["password"]:
-        return "Please enter both username and password."
-
-    return redirect(url_for("signup_emergency"))
 
 
 @app.route("/signup-emergency", methods=["GET", "POST"])

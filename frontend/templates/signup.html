@@ -4,45 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R.E.S.C.U. Signup</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="page-wrapper">
         <div class="hero-section">
             <h1>R.E.S.C.U.</h1>
-            <p>Sign up to create your account.</p>
+            <p>Create your account to get started.</p>
         </div>
 
         <div class="form-section">
             <div class="form-container">
-                <form action="/signup" method="post">
+                <form action="/signup" method="post" onsubmit="return validateSignup()">
                     <h2>Create Account</h2>
                     <p class="subtext">Select your role and enter your details.</p>
 
-                    <div class="role-slider-container">
-                        <div class="role-slider">
-                            <input type="radio" name="role" id="owner" value="owner" checked>
-                            <label for="owner" class="slider-label">Owner</label>
-
-                            <input type="radio" name="role" id="caregiver" value="caregiver">
-                            <label for="caregiver" class="slider-label">Caregiver</label>
-                            
-                            <div class="slider-tab"></div>
-                        </div>
+                    <div class="role-buttons">
+                        <input type="radio" name="role" id="owner" value="owner" checked>
+                        <label for="owner">Owner</label>
+                        <input type="radio" name="role" id="caregiver" value="caregiver">
+                        <label for="caregiver">Caregiver</label>
                     </div>
 
                     <input type="text" name="first_name" placeholder="First Name" required>
                     <input type="text" name="last_name" placeholder="Last Name" required>
                     <input type="text" name="username" placeholder="Username" required>
                     <input type="tel" name="phone" placeholder="Phone Number" required>
-                    <input type="email" name="email" placeholder="Email Address" required>
-                    <input type="password" name="password" placeholder="Password" required>
-                    <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                    <input type="password" name="password" id="password" placeholder="Password" required>
+                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
 
                     {% if error %}
                     <div class="error show">{{ error }}</div>
                     {% endif %}
+                    <div class="error" id="pw-error">Passwords do not match.</div>
 
                     <button type="submit">Sign Up</button>
                 </form>
@@ -53,5 +48,19 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function validateSignup() {
+            const pw = document.getElementById('password').value;
+            const cpw = document.getElementById('confirm_password').value;
+            const err = document.getElementById('pw-error');
+            if (pw !== cpw) {
+                err.classList.add('show');
+                return false;
+            }
+            err.classList.remove('show');
+            return true;
+        }
+    </script>
 </body>
 </html>

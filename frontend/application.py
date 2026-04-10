@@ -52,9 +52,9 @@ def signup_emergency():
 
         payload = session["temp_signup_data"]
         payload["emergency_contacts"] = contacts_list
-        
+
         # FIX: satisfy the backend API mandatory field requirement
-        payload["phone"] = "000-000-0000" 
+        payload["phone"] = "000-000-0000"
 
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
@@ -143,17 +143,15 @@ def logout():
 # =========================
 @app.route("/home")
 def home():
-    if not session.get('user'):
+    if not session.get('username'):
         return redirect(url_for('index'))
 
-    # If the user is navigating directly to the page, give them the shell
     if request.headers.get('Sec-Fetch-Dest') != 'iframe':
         return render_template('parent_page.html')
 
-    # Otherwise, return the original home.html
-    user_data = users.get(session.get('user'), {})
+    user_data = session.get('profile', {})
     return render_template('home.html',
-                           username=session.get('user'),
+                           username=session.get('username'),
                            email=user_data.get('email'),
                            device={"battery": "--", "status": "Disconnected"})
 

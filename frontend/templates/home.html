@@ -16,14 +16,17 @@
 
         /* Expands the wrapper to fill the space better while keeping things in a line */
         .inner-wrapper {
-            min-height: 100vh;
+            /* Change min-height to height and use box-sizing */
+            height: 100vh; 
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 60px 20px;
+            /* Reduce padding slightly or ensure it's included in the height calculation */
+            padding: 40px 20px; 
             width: 100%;
             max-width: 700px; 
             margin: 0 auto;
+            box-sizing: border-box; /* Ensures padding doesn't add to the 100vh */
         }
 
         /* Header styling */

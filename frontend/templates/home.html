@@ -1,193 +1,283 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>R.E.S.C.U. Home</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
+
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
-        /* Custom overrides to 'inner.css' to expand the layout */
-        
+
+        /* Forces the top-to-bottom gradient to fill the entire screen */
+
+        body, html {
+
+            background: linear-gradient(to bottom, #1E90FF, #800080) !important;
+
+            margin: 0;
+
+            min-height: 100%;
+
+            font-family: 'Roboto', sans-serif;
+
+        }
+
+    
+
+        /* Centers the content and defines the maximum width for the dashboard */
+
         .inner-wrapper {
-            max-width: 1000px; /* Increased from 800px to fill space */
-            margin: 0 auto;
-        }
 
-        /* 2-Column Grid for the main dashboard */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            min-height: 100vh;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            padding: 48px 20px 60px;
+
             width: 100%;
-            margin-top: 20px;
+
+            max-width: 800px; /* Limits width so it doesn't look stretched on wide screens */
+
+            margin: 0 auto;
+
         }
 
-        /* Make the status row (Battery/Connection) span full width or sit in grid */
-        .status-row {
-            grid-column: span 2;
-            max-width: 100%; /* Overriding the 520px limit in inner.css */
-            gap: 20px;
+    
+
+        /* Standardizes width for cards and buttons */
+
+        .nav-card, .status-row, .btn-ble {
+
+            max-width: 520px; /* Reverted to original compact size */
+
+            width: 100%;
+
         }
 
-        .status-card {
-            padding: 24px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            transition: transform 0.2s;
+    
+
+        /* Header styling overrides */
+
+        .page-header h2 {
+
+            font-size: 2.8rem;
+
+            margin-top: 10px;
+
         }
 
-        .status-card:hover {
-            transform: translateY(-3px);
-            background: rgba(255, 255, 255, 0.18);
-        }
+    
 
-        .status-card .s-value {
-            font-size: 2.2rem; /* Larger font to fill the card */
-            margin-top: 8px;
-        }
+        /* Original vivid status colors */
 
-        /* Navigation Cards */
-        .nav-card {
-            margin-bottom: 0; /* Resetting inner.css margin for grid spacing */
-            height: 100%;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.95); /* High contrast for links */
-        }
+        .status-red { color: #ff4d4d !important; }
 
-        /* Connect Button placement */
-        .btn-ble {
-            grid-column: span 2;
-            max-width: 100%;
-            padding: 20px;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-            background: #2ed573; /* Starting with a distinct color */
-            margin-bottom: 0;
-        }
+        .status-green { color: #2ecc71 !important; }
 
-        /* Mobile adjustments */
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            .status-row, .btn-ble {
-                grid-column: span 1;
-            }
-            .page-header h2 {
-                font-size: 2.2rem;
-            }
-        }
     </style>
+
 </head>
+
 <body>
 
+    <div class="sidebar left-sidebar"></div>
+
+    <div class="sidebar right-sidebar"></div>
+
+
+
     <div class="inner-wrapper">
+
         <header class="page-header">
-            <h1 class="site-name">R.E.S.C.U.</h1>
+
             <h2>Welcome, {{ username }}!</h2>
+
             <p>{{ email }}</p>
+
         </header>
 
-        <main class="dashboard-grid">
-            
-            <div class="status-row">
-                <div class="status-card">
-                    <div class="s-label">Device Battery</div>
-                    <div id="battery-val" class="s-value">{{ device.battery }}</div>
-                </div>
-                <div class="status-card">
-                    <div class="s-label">Link Status</div>
-                    <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
-                </div>
+
+
+        <div class="status-row">
+
+            <div class="status-card">
+
+                <div class="s-label">Battery</div>
+
+                <div id="battery-val" class="s-value">{{ device.battery }}</div>
+
             </div>
 
-            <button id="connect-ble" class="btn-ble">CONNECT TO RESCU DEVICE</button>
+            <div class="status-card">
+
+                <div class="s-label">Connection</div>
+
+                <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
+
+            </div>
+
+        </div>
+
+
+
+        <button id="connect-ble" class="btn-ble">Connect to RESCU Device</button>
+
+
+
+        <div style="width:100%; max-width:520px;">
 
             <a href="{{ url_for('edit_profile') }}" class="nav-card">
+
                 <span>Account Info</span>
+
                 <span class="arrow">→</span>
-            </a>
-            
-            <a href="{{ url_for('device_status') }}" class="nav-card">
-                <span>Device Settings</span>
-                <span class="arrow">→</span>
-            </a>
-            
-            <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
-                <span>Emergency Contacts</span>
-                <span class="arrow">→</span>
-            </a>
-            
-            <a href="{{ url_for('fall_history') }}" class="nav-card">
-                <span>Fall History</span>
-                <span class="arrow">→</span>
+
             </a>
 
-        </main>
+            <a href="{{ url_for('device_status') }}" class="nav-card">
+
+                <span>Device Settings</span>
+
+                <span class="arrow">→</span>
+
+            </a>
+
+            <a href="{{ url_for('edit_emergency_contacts') }}" class="nav-card">
+
+                <span>Emergency Contacts</span>
+
+                <span class="arrow">→</span>
+
+            </a>
+
+            <a href="{{ url_for('fall_history') }}" class="nav-card">
+
+                <span>Fall History</span>
+
+                <span class="arrow">→</span>
+
+            </a>
+
+        </div>
+
+
 
         <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+
     </div>
 
+
+
     <script>
-    /** Bluetooth Logic **/
+
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
+
     const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
+
+
     const connectBtn = document.getElementById('connect-ble');
+
     const batteryEl  = document.getElementById('battery-val');
+
     const statusEl   = document.getElementById('connection-status');
 
+
+
     connectBtn.addEventListener('click', async () => {
+
         try {
+
             statusEl.textContent = 'Searching…';
-            statusEl.style.color = "white"; 
+
+            statusEl.className = 's-value';
+
+
 
             const device = await navigator.bluetooth.requestDevice({
+
                 filters: [{ name: 'RESCU_DEVICE' }],
+
                 optionalServices: [BATTERY_SERVICE_UUID]
+
             });
 
-            const server = await device.gatt.connect();
+            const server  = await device.gatt.connect();
+
             
+
             statusEl.textContent = 'Connected';
-            statusEl.className = 's-value connected'; // Uses inner.css green color
+
+            statusEl.classList.add('status-green');
+
+            statusEl.classList.remove('status-red');
+
+
 
             const service        = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+
             const characteristic = await service.getCharacteristic(BATTERY_LEVEL_UUID);
-            
+
             await characteristic.startNotifications();
 
+
+
             characteristic.addEventListener('characteristicvaluechanged', (e) => {
+
                 try {
+
                     const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                    if (data.type === 'BATTERY') {
-                        batteryEl.textContent = data.battery_pct + '%';
-                    }
-                } catch (err) { 
-                    console.error('Parse error:', err); 
-                }
+
+                    if (data.type === 'BATTERY') batteryEl.textContent = data.battery_pct + '%';
+
+                } catch (err) { console.error('Parse error:', err); }
+
             });
 
-            // Initial Read
-            const initialVal = await characteristic.readValue();
-            const initialData = JSON.parse(new TextDecoder().decode(initialVal));
-            batteryEl.textContent = initialData.battery_pct + '%';
+
+
+            const initial = JSON.parse(new TextDecoder().decode(await characteristic.readValue()));
+
+            batteryEl.textContent = initial.battery_pct + '%';
+
+
 
             device.addEventListener('gattserverdisconnected', () => {
+
                 statusEl.textContent = 'Disconnected';
-                statusEl.className = 's-value';
-                statusEl.style.color = "#ff4d4d";
+
+                statusEl.classList.add('status-red');
+
+                statusEl.classList.remove('status-green');
+
                 batteryEl.textContent = '--';
+
             });
 
         } catch (err) {
+
             console.error('BLE Error:', err);
+
             statusEl.textContent = 'Error';
-            statusEl.style.color = "#ff4d4d";
+
+            statusEl.classList.add('status-red');
+
         }
+
     });
+
     </script>
+
 </body>
+
 </html>

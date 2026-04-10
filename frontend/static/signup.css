@@ -1,167 +1,82 @@
-/* General body */
-body {
-    min-height: 100vh;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    background: linear-gradient(to bottom, #1E90FF, #800080);
-    font-family: 'Roboto', sans-serif;
-    text-align: center;
-}
-
-/* Main heading */
-h1 {
-    color: #FFFFFF;
-    font-size: 80px;
-    font-family: 'Montserrat', sans-serif;
-    margin-bottom: 40px;
-}
-
-/* Form container */
-.form-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: #ffffff;
-    padding: 40px 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-    width: 400px;
-}
-
-/* Forms */
-form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-form h2 {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    margin-bottom: 20px;
-    font-size: 28px;
-    color: #1E90FF;
-}
-
-/* =======================
-    Signup Role Slider 
-   ======================= */
-.role-toggle-wrapper {
-    margin-bottom: 20px;
-    width: 90%;
-}
-
-.role-toggle {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 50px;
-    background-color: #f0f0f0;
-    border-radius: 30px;
-    cursor: pointer;
-    border: 1px solid #ccc;
-    overflow: hidden;
-}
-
-.toggle-slider {
-    position: absolute;
-    width: 50%;
-    height: 100%;
-    background-color: #1E90FF;
-    border-radius: 30px;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1;
-}
-
-.toggle-label {
-    flex: 1;
-    z-index: 2;
-    font-size: 18px;
-    font-weight: bold;
-    color: #555;
-    transition: color 0.3s ease;
-    pointer-events: none; /* Allows click to reach the parent toggle div */
-    line-height: 50px;
-}
-
-/* Changes text to white when the slider is underneath it */
-.toggle-label.active {
-    color: #ffffff;
-}
-
-/* Inputs */
-input[type="text"],
-input[type="password"],
-input[type="tel"],
-input[type="email"] {
-    width: 90%;
-    padding: 12px 15px;
-    margin: 8px 0;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    transition: border-color 0.3s;
-    box-sizing: border-box;
-}
-
-/* Focus state */
-input:focus {
-    outline: none;
-    border-color: #1E90FF;
-}
-
-/* Buttons */
-button {
-    width: 90%;
-    padding: 12px 15px;
-    margin-top: 15px;
-    border: none;
-    border-radius: 8px;
-    background: #1E90FF;
-    color: #fff;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-button:hover {
-    background: #104E8B;
-}
-
-/* Error message (for password mismatch) */
-.error {
-    color: red;
-    font-size: 14px;
-    margin-top: 10px;
-    opacity: 0;
-    transform: scale(0.9);
-    transition: all 0.3s ease-in-out;
-    height: 0; /* Prevents layout jump when hidden */
-}
-
-.error.show {
-    opacity: 1;
-    transform: scale(1);
-    height: auto;
-}
-
-/* Signup / Back link */
-.login-link {
-    margin-top: 25px;
-    font-size: 16px;
-}
-
-.login-link a {
-    color: #1E90FF;
+/* =========================================
+   Persistent "Go Back" Link (Never turns grey)
+   ========================================= */
+.login-link a, 
+.login-link a:visited, 
+.login-link a:active, 
+.login-link a:focus {
+    color: #1E90FF !important; /* Forces the blue color always */
     text-decoration: none;
-    font-weight: bold;
+    font-weight: 700;
+    outline: none;
 }
 
 .login-link a:hover {
     text-decoration: underline;
+    color: #104E8B !important;
+}
+
+/* =========================================
+   Role Slider Styling
+   ========================================= */
+.role-slider-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+
+.role-slider {
+    position: relative;
+    display: flex;
+    width: 100%;
+    background: #eee;
+    padding: 4px;
+    border-radius: 12px;
+    height: 50px;
+    user-select: none;
+}
+
+.role-slider input[type="radio"] {
+    display: none;
+}
+
+.slider-label {
+    flex: 1;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 700;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
+/* The sliding background pill */
+.slider-tab {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: #1E90FF;
+    border-radius: 10px;
+    transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Slider Logic */
+#owner:checked ~ .slider-tab {
+    transform: translateX(0);
+}
+
+#caregiver:checked ~ .slider-tab {
+    transform: translateX(100%);
+}
+
+/* Label color change when active */
+#owner:checked ~ label[for="owner"],
+#caregiver:checked ~ label[for="caregiver"] {
+    color: white;
 }

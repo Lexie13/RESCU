@@ -55,6 +55,8 @@ def signup_emergency():
         payload = session["temp_signup_data"]
         payload["emergency_contacts"] = contacts_list
 
+        payload["phone"] = "000-000-0000"
+
         try:
             response = requests.put(f"{API_GATEWAY_URL}/login", json=payload)
             status   = response.status_code

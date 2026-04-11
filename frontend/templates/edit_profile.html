@@ -178,17 +178,23 @@
 
         <hr>
 
-        <!-- Name -->
+        <!-- First Name -->
         <div class="field-group">
-            <label class="field-label">Name</label>
+            <label class="field-label">First Name</label>
             <div class="field-group-inner">
-                <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
-                    <input type="text" id="first_name" name="first_name"
-                           value="{{ user.first_name or '' }}" placeholder="First Name">
-                    <input type="text" id="last_name" name="last_name"
-                           value="{{ user.last_name or '' }}" placeholder="Last Name">
-                </div>
-                <button class="btn-save-inline" onclick="saveField(this, 'name')">Save</button>
+                <input type="text" id="first_name" name="first_name"
+                       value="{{ user.first_name or '' }}" placeholder="First Name">
+                <button class="btn-save-inline" onclick="saveField(this, 'first_name')">Save</button>
+            </div>
+        </div>
+
+        <!-- Last Name -->
+        <div class="field-group">
+            <label class="field-label">Last Name</label>
+            <div class="field-group-inner">
+                <input type="text" id="last_name" name="last_name"
+                       value="{{ user.last_name or '' }}" placeholder="Last Name">
+                <button class="btn-save-inline" onclick="saveField(this, 'last_name')">Save</button>
             </div>
         </div>
 
@@ -246,12 +252,14 @@ function saveField(btn, field) {
         const selected = document.querySelector('input[name="role"]:checked');
         if (!selected) return;
         payload.role = selected.value;
-    } else if (field === 'name') {
-        const first = document.getElementById('first_name').value.trim();
-        const last  = document.getElementById('last_name').value.trim();
-        if (!first || !last) { alert('Please fill in both first and last name.'); return; }
-        payload.first_name = first;
-        payload.last_name  = last;
+    } else if (field === 'first_name') {
+        const val = document.getElementById('first_name').value.trim();
+        if (!val) { alert('Please enter a first name.'); return; }
+        payload.first_name = val;
+    } else if (field === 'last_name') {
+        const val = document.getElementById('last_name').value.trim();
+        if (!val) { alert('Please enter a last name.'); return; }
+        payload.last_name = val;
     } else if (field === 'email') {
         const email = document.getElementById('email').value.trim();
         if (!email) { alert('Please enter an email address.'); return; }

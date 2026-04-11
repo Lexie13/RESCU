@@ -2,181 +2,105 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Account Info</title>
+    <title>Emergency Contacts</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
     <style>
-        /* Change background to top-to-bottom gradient */
         .inner-wrapper.vertical-bg {
             background: linear-gradient(180deg, #1E90FF, #800080);
         }
 
-        /* Resize header text to be larger */
         .page-header h2 {
             font-size: clamp(2.2rem, 6vw, 3.2rem);
             margin-bottom: 10px;
         }
 
-        /* --- Sliding Role Toggle Styles --- */
-        .role-slider-container {
-            background: #f1f1f1;
-            border-radius: 30px;
-            position: relative;
-            display: flex;
-            padding: 4px;
-            margin: 10px 0 20px;
-            border: 1px solid #ddd;
-            height: 50px;
-            align-items: center;
-        }
+        /* Widen card for two inputs per row */
+        .page-card { max-width: 620px; }
 
-        .role-slider-container input[type="radio"] {
-            display: none;
-        }
-
-        .role-slider-container label {
-            flex: 1;
-            z-index: 2;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 700;
-            color: #666;
-            transition: color 0.3s;
-            font-size: 15px;
-        }
-
-        .role-slider-container .slider-thumb {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            height: calc(100% - 8px);
-            background: #1E90FF;
-            border-radius: 26px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(30,144,255,0.3);
-        }
-
-        /* Shift thumb and change text color based on selection */
-        #role-caregiver:checked ~ .slider-thumb {
-            transform: translateX(100%);
-        }
-
-        #role-owner:checked ~ label[for="role-owner"],
-        #role-caregiver:checked ~ label[for="role-caregiver"] {
-            color: white;
+        /* Blue saved state (matches Account Info) */
+        .btn-save.saved {
+            background: #104E8B;
+            cursor: default;
         }
     </style>
 </head>
 <body>
 <div class="inner-wrapper vertical-bg">
-
     <header class="page-header">
-        <h2>Account Info</h2>
-        <p>Update your personal details below.</p>
+        <h2>Emergency Contacts</h2>
+        <p>Add, remove, or reorder who gets notified.</p>
     </header>
-
     <div class="page-card">
-        <form id="profile-form" action="{{ url_for('edit_profile') }}" method="POST" onsubmit="return validateForm()">
-
-            <label class="field-label">Role</label>
-            <div class="role-slider-container">
-                <input type="radio" name="role" id="role-owner" value="owner"
-                       {% if user.role != 'caregiver' %}checked{% endif %}>
-                <label for="role-owner">Owner</label>
-
-                <input type="radio" name="role" id="role-caregiver" value="caregiver"
-                       {% if user.role == 'caregiver' %}checked{% endif %}>
-                <label for="role-caregiver">Caregiver</label>
-                
-                <div class="slider-thumb"></div>
-            </div>
-
-            <div class="field-row">
-                <div>
-                    <label class="field-label" for="first_name">First Name</label>
-                    <input type="text" id="first_name" name="first_name"
-                           value="{{ user.first_name or '' }}" placeholder="First Name" required>
+        <form id="contacts-form" action="{{ url_for('edit_emergency_contacts') }}" method="POST">
+            <div id="contact-list">
+                {% for contact in contacts %}
+                <div class="contact-row">
+                    <span class="rank-badge">{{ loop.index }}</span>
+                    <div class="order-controls">
+                        <button type="button" onclick="moveUp(this)">▲</button>
+                        <button type="button" onclick="moveDown(this)">▼</button>
+                    </div>
+                    <input type="text"  name="contact_name"  value="{{ contact.name }}"  placeholder="Full Name"      required>
+                    <input type="email" name="contact_email" value="{{ contact.email }}" placeholder="Email Address"  required>
+                    <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
                 </div>
-                <div>
-                    <label class="field-label" for="last_name">Last Name</label>
-                    <input type="text" id="last_name" name="last_name"
-                           value="{{ user.last_name or '' }}" placeholder="Last Name" required>
-                </div>
+                {% endfor %}
             </div>
-
-            <label class="field-label" for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone"
-                   value="{{ user.phone or '' }}" placeholder="Phone Number" required>
-
-            <label class="field-label" for="email">Email Address</label>
-            <input type="email" id="email" name="email"
-                   value="{{ user.email or '' }}" placeholder="Email Address" required>
-
-            <label class="field-label">Username</label>
-            <input type="text" value="{{ username }}" disabled
-                   style="background:#f0f0f0; color:#999; cursor:not-allowed;">
-
-            <hr>
-
-            <div class="password-section">
-                <label class="field-label">Password</label>
-                <button type="button" class="btn-secondary" onclick="togglePassword(this)">
-                    Change Password
-                </button>
-                <div class="password-fields" id="password-fields">
-                    <label class="field-label" for="new_password">New Password</label>
-                    <input type="password" id="new_password" name="new_password" placeholder="New Password">
-                    <label class="field-label" for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password">
-                </div>
+            <div class="contacts-footer">
+                <button type="button" class="btn-secondary" onclick="addRow()">+ Add Contact</button>
+                <button type="submit" class="btn-save" id="save-btn">Save Changes</button>
             </div>
-
-            {% if error %}
-            <div class="error-msg show">{{ error }}</div>
-            {% endif %}
-            <div class="error-msg" id="pw-error">Passwords do not match.</div>
-
-            <button type="submit" class="btn-primary" id="save-btn">Save Changes</button>
         </form>
     </div>
-
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
 </div>
-
 <script>
-function togglePassword(btn) {
-    const fields = document.getElementById('password-fields');
-    const open = fields.classList.toggle('open');
-    btn.textContent = open ? 'Cancel' : 'Change Password';
-    if (!open) {
-        document.getElementById('new_password').value = '';
-        document.getElementById('confirm_password').value = '';
-    }
+function updateRanks() {
+    document.querySelectorAll('.contact-row').forEach((row, i) => {
+        const badge = row.querySelector('.rank-badge');
+        if (badge) badge.textContent = i + 1;
+    });
 }
-
-function validateForm() {
-    const fields = document.getElementById('password-fields');
-    const err    = document.getElementById('pw-error');
-    if (fields.classList.contains('open')) {
-        const np = document.getElementById('new_password').value;
-        const cp = document.getElementById('confirm_password').value;
-        if (np && np !== cp) {
-            err.classList.add('show');
-            setTimeout(() => err.classList.remove('show'), 3000);
-            return false;
-        }
-    }
-    return true;
+function addRow() {
+    const list = document.getElementById('contact-list');
+    if (list.children.length >= 5) { alert('Maximum of 5 contacts allowed.'); return; }
+    const row = document.createElement('div');
+    row.className = 'contact-row';
+    row.innerHTML = `
+        <span class="rank-badge"></span>
+        <div class="order-controls">
+            <button type="button" onclick="moveUp(this)">▲</button>
+            <button type="button" onclick="moveDown(this)">▼</button>
+        </div>
+        <input type="text"  name="contact_name"  placeholder="Full Name"     required>
+        <input type="email" name="contact_email" placeholder="Email Address" required>
+        <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
+    `;
+    list.appendChild(row);
+    updateRanks();
 }
-
-document.getElementById('profile-form').addEventListener('submit', function(e) {
-    if (!validateForm()) { e.preventDefault(); return; }
+function removeRow(btn) {
+    btn.closest('.contact-row').remove();
+    updateRanks();
+}
+function moveUp(btn) {
+    const row = btn.closest('.contact-row');
+    const prev = row.previousElementSibling;
+    if (prev) { row.parentNode.insertBefore(row, prev); updateRanks(); }
+}
+function moveDown(btn) {
+    const row = btn.closest('.contact-row');
+    const next = row.nextElementSibling;
+    if (next) { row.parentNode.insertBefore(next, row); updateRanks(); }
+}
+window.onload = updateRanks;
+document.getElementById('contacts-form').addEventListener('submit', function(e) {
+    e.preventDefault();
     const btn = document.getElementById('save-btn');
     btn.textContent = '✓ Saved!';
     btn.classList.add('saved');
+    setTimeout(() => { btn.classList.remove('saved'); btn.textContent = 'Save Changes'; this.submit(); }, 900);
 });
 </script>
 </body>

@@ -249,7 +249,18 @@ window.addEventListener("message", (event) => {
     if (event.data.type === "BATTERY_UPDATE") {
         batteryEl.textContent = event.data.value;
     }
+
+    // Handle disconnection confirmed from parent
+    if (event.data.type === "DISCONNECTED") {
+        statusEl.textContent = "Disconnected";
+        statusEl.style.color = "#ff4d4d";
+        statusEl.classList.remove("online");
+        connectBtn.textContent = "Connect to RESCU Device";
+        connectBtn.style.background = "#800080";
+        isConnected = false;
+    }
 });
 </script>
+
 </body>
 </html>

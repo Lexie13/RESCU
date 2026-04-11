@@ -87,24 +87,6 @@
             margin: 0;
         }
 
-        .field-group-inner .field-row input {
-            margin: 0;
-        }
-
-        /* Lock both rows to the same height */
-        .field-group-inner .field-row,
-        .field-group-inner > input[type="email"] {
-            height: 49px;
-        }
-
-        .field-group-inner .field-row > div {
-            height: 100%;
-        }
-
-        .field-group-inner .field-row input {
-            height: 100%;
-        }
-
         .btn-save-inline {
             background: #1E90FF;
             color: white;
@@ -200,15 +182,11 @@
         <div class="field-group">
             <label class="field-label">Name</label>
             <div class="field-group-inner">
-                <div class="field-row">
-                    <div>
-                        <input type="text" id="first_name" name="first_name"
-                               value="{{ user.first_name or '' }}" placeholder="First Name">
-                    </div>
-                    <div>
-                        <input type="text" id="last_name" name="last_name"
-                               value="{{ user.last_name or '' }}" placeholder="Last Name">
-                    </div>
+                <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                    <input type="text" id="first_name" name="first_name"
+                           value="{{ user.first_name or '' }}" placeholder="First Name">
+                    <input type="text" id="last_name" name="last_name"
+                           value="{{ user.last_name or '' }}" placeholder="Last Name">
                 </div>
                 <button class="btn-save-inline" onclick="saveField(this, 'name')">Save</button>
             </div>

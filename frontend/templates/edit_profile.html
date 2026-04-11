@@ -105,7 +105,7 @@
         }
 
         .btn-save-inline:hover { background: #104E8B; }
-        .btn-save-inline.saved { background: #2ed573; cursor: default; }
+        .btn-save-inline.saved { background: #104E8B; cursor: default; }
 
         .role-save-row {
             margin-top: 10px;
@@ -127,7 +127,7 @@
         }
 
         .btn-save-small:hover { background: #104E8B; }
-        .btn-save-small.saved { background: #2ed573; cursor: default; }
+        .btn-save-small.saved { background: #104E8B; cursor: default; }
 
         .btn-save-pw {
             display: block;
@@ -146,7 +146,7 @@
         }
 
         .btn-save-pw:hover { background: #104E8B; }
-        .btn-save-pw.saved { background: #2ed573; cursor: default; }
+        .btn-save-pw.saved { background: #104E8B; cursor: default; }
     </style>
 </head>
 <body>
@@ -283,9 +283,7 @@ function saveField(btn, field) {
             btn.textContent = orig;
             btn.classList.remove('saved');
             btn.disabled = false;
-        }, 2000);
-    })
-    .catch(() => alert('Could not save. Please try again.'));
+        }, 800);
 }
 
 function togglePassword(btn) {
@@ -328,7 +326,7 @@ function savePassword(btn) {
             btn.classList.remove('saved');
             btn.disabled = false;
             togglePassword(document.querySelector('.btn-secondary'));
-        }, 2000);
+        }, 800);
     })
     .catch(() => alert('Could not save password. Please try again.'));
 }

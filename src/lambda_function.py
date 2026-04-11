@@ -39,7 +39,9 @@ def lambda_handler(event, context):
             password = body.get("password")
             first_name = body.get("first_name")
             last_name = body.get("last_name")
-            phone = body.get("phone", "") # Make phone optional (defaults to empty string)
+            phone = body.get(
+                "phone", ""
+            )  # Make phone optional (defaults to empty string)
             email = body.get("email")
             role = body.get("role", "primary_user")
 

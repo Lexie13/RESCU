@@ -174,6 +174,7 @@ def home():
         device={"battery": "--", "status": "Disconnected"},
     )
 
+
 @app.route("/test-alert", methods=["POST"])
 def test_alert():
     if "user_id" not in session:
@@ -181,13 +182,13 @@ def test_alert():
 
     payload = {
         "user_id": session["user_id"],
-        "location": "Manual Test from Web Dashboard"
+        "location": "Manual Test from Web Dashboard",
     }
 
     try:
         # Calls the POST /alert route in your Lambda/API Gateway
         response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
-        
+
         if response.status_code == 200:
             flash("Emergency loop triggered successfully! Check your email.", "success")
         else:

@@ -94,51 +94,61 @@
         }, { enableHighAccuracy: true });
     }
 
-    // --- 3. BLUETOOTH GESTURE LISTENER ---
-    window.addEventListener("message", async (event) => {
-        if (event.data === "CONNECT_BLE") {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [FALL_SERVICE_UUID] }],
-                    optionalServices: [BATTERY_SERVICE_UUID]
-                });
+// --- 3. BLUETOOTH GESTURE LISTENER ---
+window.addEventListener("message", async (event) => {
+    // CONNECT LOGIC
+    if (event.data === "CONNECT_BLE") {
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ services: [FALL_SERVICE_UUID] }],
+                optionalServices: [BATTERY_SERVICE_UUID]
+            });
 
-                bleServer = await device.gatt.connect();
-                frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+            bleServer = await device.gatt.connect();
 
-                // Setup Battery
-                const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
-                const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
-                await battChar.startNotifications();
-                battChar.addEventListener('characteristicvaluechanged', (e) => {
-                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                    if (data.type === "BATTERY") {
-                        frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
-                    }
-                });
+            // Notify the home frame that we are connected
+            frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
 
-                // Setup Fall Alert
-                const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
-                const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
-                await fallChar.startNotifications();
+            // Setup Battery Notifications
+            const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
+            const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
+            await battChar.startNotifications();
+            battChar.addEventListener('characteristicvaluechanged', (e) => {
+                const data = JSON.parse(new TextDecoder().decode(e.target.value));
+                if (data.type === "BATTERY") {
+                    frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
+                }
+            });
 
-                // ONLY ONE LISTENER HERE
-                fallChar.addEventListener('characteristicvaluechanged', (e) => {
-                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                    if (data.type === "FALL") {
-                        console.log("Hardware Fall Signal Received");
-                        sendFallToBackend(data); // Location and Alert happen inside here
-                    }
-                });
+            // Setup Fall Alert Notifications
+            const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
+            const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
+            await fallChar.startNotifications();
+            fallChar.addEventListener('characteristicvaluechanged', (e) => {
+                const data = JSON.parse(new TextDecoder().decode(e.target.value));
+                if (data.type === "FALL") {
+                    sendFallToBackend(data);
+                }
+            });
 
-            } catch (err) { console.error("BLE Connection Error:", err); }
+        } catch (err) {
+            console.error("BLE Connection Error:", err);
+            // Reset home UI if user cancels the pairing dialog
+            frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
         }
-    });
+    }
 
-    window.addEventListener('load', () => {
-        frame.style.opacity = '1';
-        warmUpLocation();
-    });
+    // NEW: DISCONNECT LOGIC
+    if (event.data === "DISCONNECT_BLE") {
+        if (bleServer && bleServer.connected) {
+            bleServer.disconnect();
+            console.log("BLE Device Disconnected manually.");
+        }
+        bleServer = null;
+        // Tell the home frame to update its UI
+        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+    }
+});
 </script>
 </body>
 </html>

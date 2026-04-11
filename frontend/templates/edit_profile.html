@@ -7,12 +7,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Change background to top-to-bottom gradient */
         .inner-wrapper.vertical-bg {
             background: linear-gradient(180deg, #1E90FF, #800080);
         }
 
-        /* Resize header text to be larger */
         .page-header h2 {
             font-size: clamp(2.2rem, 6vw, 3.2rem);
             margin-bottom: 10px;
@@ -25,7 +23,7 @@
             position: relative;
             display: flex;
             padding: 4px;
-            margin: 10px 0 20px;
+            margin: 6px 0 0;
             border: 1px solid #ddd;
             height: 50px;
             align-items: center;
@@ -59,7 +57,6 @@
             box-shadow: 0 2px 8px rgba(30,144,255,0.3);
         }
 
-        /* Shift thumb and change text color based on selection */
         #role-caregiver:checked ~ .slider-thumb {
             transform: translateX(100%);
         }
@@ -68,6 +65,83 @@
         #role-caregiver:checked ~ label[for="role-caregiver"] {
             color: white;
         }
+
+        /* --- Per-field save layout --- */
+        .field-group {
+            margin-bottom: 20px;
+        }
+
+        .field-group-inner {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-top: 6px;
+        }
+
+        .field-group-inner input,
+        .field-group-inner .field-row {
+            flex: 1;
+        }
+
+        .btn-save-inline {
+            background: #1E90FF;
+            color: white;
+            border: none;
+            padding: 0 18px;
+            height: 49px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Roboto', sans-serif;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.25s, transform 0.1s;
+            flex-shrink: 0;
+        }
+
+        .btn-save-inline:hover { background: #104E8B; }
+        .btn-save-inline.saved { background: #2ed573; cursor: default; }
+
+        .role-save-row {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .btn-save-small {
+            background: #1E90FF;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Roboto', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: auto;
+        }
+
+        .btn-save-small:hover { background: #104E8B; }
+        .btn-save-small.saved { background: #2ed573; cursor: default; }
+
+        .btn-save-pw {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            margin-top: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #1E90FF;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'Roboto', sans-serif;
+            cursor: pointer;
+            transition: background 0.25s;
+        }
+
+        .btn-save-pw:hover { background: #104E8B; }
+        .btn-save-pw.saved { background: #2ed573; cursor: default; }
     </style>
 </head>
 <body>
@@ -79,8 +153,9 @@
     </header>
 
     <div class="page-card">
-        <form id="profile-form" action="{{ url_for('edit_profile') }}" method="POST" onsubmit="return validateForm()">
 
+        <!-- Role -->
+        <div class="field-group">
             <label class="field-label">Role</label>
             <div class="role-slider-container">
                 <input type="radio" name="role" id="role-owner" value="owner"
@@ -90,63 +165,120 @@
                 <input type="radio" name="role" id="role-caregiver" value="caregiver"
                        {% if user.role == 'caregiver' %}checked{% endif %}>
                 <label for="role-caregiver">Caregiver</label>
-                
+
                 <div class="slider-thumb"></div>
             </div>
-
-            <div class="field-row">
-                <div>
-                    <label class="field-label" for="first_name">First Name</label>
-                    <input type="text" id="first_name" name="first_name"
-                           value="{{ user.first_name or '' }}" placeholder="First Name" required>
-                </div>
-                <div>
-                    <label class="field-label" for="last_name">Last Name</label>
-                    <input type="text" id="last_name" name="last_name"
-                           value="{{ user.last_name or '' }}" placeholder="Last Name" required>
-                </div>
+            <div class="role-save-row">
+                <button class="btn-save-small" onclick="saveField(this, 'role')">Save role</button>
             </div>
+        </div>
 
-            <label class="field-label" for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone"
-                   value="{{ user.phone or '' }}" placeholder="Phone Number" required>
+        <hr>
 
-            <label class="field-label" for="email">Email Address</label>
-            <input type="email" id="email" name="email"
-                   value="{{ user.email or '' }}" placeholder="Email Address" required>
+        <!-- Name -->
+        <div class="field-group">
+            <label class="field-label">Name</label>
+            <div class="field-group-inner">
+                <div class="field-row">
+                    <div>
+                        <input type="text" id="first_name" name="first_name"
+                               value="{{ user.first_name or '' }}" placeholder="First Name">
+                    </div>
+                    <div>
+                        <input type="text" id="last_name" name="last_name"
+                               value="{{ user.last_name or '' }}" placeholder="Last Name">
+                    </div>
+                </div>
+                <button class="btn-save-inline" onclick="saveField(this, 'name')">Save</button>
+            </div>
+        </div>
 
+        <!-- Email -->
+        <div class="field-group">
+            <label class="field-label">Email Address</label>
+            <div class="field-group-inner">
+                <input type="email" id="email" name="email"
+                       value="{{ user.email or '' }}" placeholder="Email Address">
+                <button class="btn-save-inline" onclick="saveField(this, 'email')">Save</button>
+            </div>
+        </div>
+
+        <!-- Username (read-only) -->
+        <div class="field-group">
             <label class="field-label">Username</label>
             <input type="text" value="{{ username }}" disabled
-                   style="background:#f0f0f0; color:#999; cursor:not-allowed;">
+                   style="margin-top:6px; background:#f0f0f0; color:#999; cursor:not-allowed;">
+        </div>
 
-            <hr>
+        <hr>
 
-            <div class="password-section">
-                <label class="field-label">Password</label>
+        <!-- Password -->
+        <div>
+            <label class="field-label">Password</label>
+            <div style="margin-top: 6px;">
                 <button type="button" class="btn-secondary" onclick="togglePassword(this)">
                     Change Password
                 </button>
-                <div class="password-fields" id="password-fields">
-                    <label class="field-label" for="new_password">New Password</label>
-                    <input type="password" id="new_password" name="new_password" placeholder="New Password">
-                    <label class="field-label" for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password">
-                </div>
             </div>
+            <div class="password-fields" id="password-fields">
+                <label class="field-label" for="new_password" style="margin-top: 12px;">New Password</label>
+                <input type="password" id="new_password" name="new_password" placeholder="New Password">
+                <label class="field-label" for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password">
+                <div class="error-msg" id="pw-error">Passwords do not match.</div>
+                <button class="btn-save-pw" onclick="savePassword(this)">Save Password</button>
+            </div>
+        </div>
 
-            {% if error %}
-            <div class="error-msg show">{{ error }}</div>
-            {% endif %}
-            <div class="error-msg" id="pw-error">Passwords do not match.</div>
+        {% if error %}
+        <div class="error-msg show" style="margin-top: 16px;">{{ error }}</div>
+        {% endif %}
 
-            <button type="submit" class="btn-primary" id="save-btn">Save Changes</button>
-        </form>
     </div>
 
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
 </div>
 
 <script>
+function saveField(btn, field) {
+    const payload = {};
+
+    if (field === 'role') {
+        const selected = document.querySelector('input[name="role"]:checked');
+        if (!selected) return;
+        payload.role = selected.value;
+    } else if (field === 'name') {
+        const first = document.getElementById('first_name').value.trim();
+        const last  = document.getElementById('last_name').value.trim();
+        if (!first || !last) { alert('Please fill in both first and last name.'); return; }
+        payload.first_name = first;
+        payload.last_name  = last;
+    } else if (field === 'email') {
+        const email = document.getElementById('email').value.trim();
+        if (!email) { alert('Please enter an email address.'); return; }
+        payload.email = email;
+    }
+
+    fetch("{{ url_for('edit_profile') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Save failed');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Saved!';
+        btn.classList.add('saved');
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('saved');
+            btn.disabled = false;
+        }, 2000);
+    })
+    .catch(() => alert('Could not save. Please try again.'));
+}
+
 function togglePassword(btn) {
     const fields = document.getElementById('password-fields');
     const open = fields.classList.toggle('open');
@@ -154,30 +286,43 @@ function togglePassword(btn) {
     if (!open) {
         document.getElementById('new_password').value = '';
         document.getElementById('confirm_password').value = '';
+        document.getElementById('pw-error').classList.remove('show');
     }
 }
 
-function validateForm() {
-    const fields = document.getElementById('password-fields');
-    const err    = document.getElementById('pw-error');
-    if (fields.classList.contains('open')) {
-        const np = document.getElementById('new_password').value;
-        const cp = document.getElementById('confirm_password').value;
-        if (np && np !== cp) {
-            err.classList.add('show');
-            setTimeout(() => err.classList.remove('show'), 3000);
-            return false;
-        }
-    }
-    return true;
-}
+function savePassword(btn) {
+    const np  = document.getElementById('new_password').value;
+    const cp  = document.getElementById('confirm_password').value;
+    const err = document.getElementById('pw-error');
 
-document.getElementById('profile-form').addEventListener('submit', function(e) {
-    if (!validateForm()) { e.preventDefault(); return; }
-    const btn = document.getElementById('save-btn');
-    btn.textContent = '✓ Saved!';
-    btn.classList.add('saved');
-});
+    if (!np || np !== cp) {
+        err.classList.add('show');
+        setTimeout(() => err.classList.remove('show'), 3000);
+        return;
+    }
+
+    err.classList.remove('show');
+
+    fetch("{{ url_for('edit_profile') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: np })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Save failed');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Saved!';
+        btn.classList.add('saved');
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('saved');
+            btn.disabled = false;
+            togglePassword(document.querySelector('.btn-secondary'));
+        }, 2000);
+    })
+    .catch(() => alert('Could not save password. Please try again.'));
+}
 </script>
 </body>
 </html>

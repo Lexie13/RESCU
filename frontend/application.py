@@ -252,6 +252,29 @@ def home():
         "home.html", username=session["username"], email=email, device=device_info
     )
 
+@app.route("/test-alert", methods=["POST"])
+def test_alert():
+    if "user_id" not in session:
+        return redirect(url_for("index"))
+
+    payload = {
+        "user_id": session["user_id"],
+        "location": "Manual Test from Web Dashboard"
+    }
+
+    try:
+        # Calls the POST /alert route in your Lambda/API Gateway
+        response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
+        
+        if response.status_code == 200:
+            flash("Emergency loop triggered successfully! Check your email.", "success")
+        else:
+            flash(f"Failed to trigger loop: {response.text}", "error")
+    except Exception as e:
+        flash(f"Error connecting to alert service: {str(e)}", "error")
+
+    return redirect(url_for("home"))
+
 
 @app.route("/edit-emergency-contacts", methods=["GET", "POST"])
 def edit_emergency_contacts():

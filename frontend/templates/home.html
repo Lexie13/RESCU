@@ -33,6 +33,14 @@
         </button>
     </div>
 
+    <div style="text-align: center; margin-bottom: 20px;">
+        <form action="{{ url_for('test_alert') }}" method="POST">
+            <button type="submit" class="action-item" style="background: #FF4500; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Trigger Test Fall Alert
+            </button>
+        </form>
+    </div>
+
     <nav class="action-list">
         <a href="{{ url_for('edit_profile') }}" class="action-item">
             <span>Account Info</span>

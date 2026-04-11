@@ -148,6 +148,7 @@ window.addEventListener("message", async (event) => {
         // Tell the home frame to update its UI
         frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
     }
+
 });
 </script>
 </body>

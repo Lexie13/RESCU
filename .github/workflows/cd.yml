@@ -6,7 +6,6 @@ on:
       - main
       - ci-cd-pipeline
       - store-login
-      - test-alerts
 
 permissions:
   id-token: write

@@ -17,14 +17,14 @@
         /* Expands the wrapper to fill the space better while keeping things in a line */
         .inner-wrapper {
             /* Change min-height to height and use box-sizing */
-            height: 100vh; 
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             /* Reduce padding slightly or ensure it's included in the height calculation */
-            padding: 40px 20px; 
+            padding: 40px 20px;
             width: 100%;
-            max-width: 700px; 
+            max-width: 700px;
             margin: 0 auto;
             box-sizing: border-box; /* Ensures padding doesn't add to the 100vh */
         }
@@ -36,7 +36,7 @@
             text-align: center;
             color: white;
         }
-        
+
         .page-header p {
             text-align: center;
             color: white;
@@ -44,8 +44,8 @@
         }
 
         /* Standardizing widths for the vertical stack */
-        .status-row, 
-        .btn-ble, 
+        .status-row,
+        .btn-ble,
         .nav-container,
         .nav-card {
             width: 100%;
@@ -68,7 +68,7 @@
             transition: transform 0.15s, box-shadow 0.15s;
             margin-bottom: 16px;
         }
-        
+
         .nav-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.12);
@@ -76,7 +76,7 @@
 
         /* Connect Button - Fixed Purple */
         .btn-ble {
-            background: #800080 !important; 
+            background: #800080 !important;
             color: white !important;
             padding: 20px;
             font-size: 18px;
@@ -91,7 +91,7 @@
 
         /* Hover & Active states: No color change, just motion */
         .btn-ble:hover {
-            background: #800080 !important; 
+            background: #800080 !important;
             transform: translateY(-2px);
         }
 
@@ -182,6 +182,10 @@
         <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
     </footer>
 </div>
+<div class="status-card">
+    <div class="s-label">Connection</div>
+    <div id="connection-status" class="s-value status-red">{{ device.status }}</div>
+</div>
 
 <script>
 const connectBtn = document.getElementById('connect-ble');
@@ -190,37 +194,66 @@ const batteryEl = document.getElementById('battery-val');
 
 let isConnected = false;
 
-connectBtn.addEventListener('click', () => {
-    if (isConnected) {
-        // Disconnect flow
-        window.parent.postMessage("DISCONNECT_BLE", "*");
-        statusEl.textContent = "Disconnected";
-        statusEl.style.color = "#ff4d4d";
-        statusEl.classList.remove("online");
+// Function to update UI based on connection state
+function updateConnectionUI(connected, statusText) {
+    isConnected = connected;
+    statusEl.textContent = statusText;
+
+    if (connected) {
+        // Switch to Connected State (Green)
+        statusEl.classList.remove("status-red");
+        statusEl.classList.add("status-green");
+        connectBtn.textContent = "Disconnect from RESCU Device";
+        // Optional: Change button color to red to indicate "Stop/Disconnect" action
+        connectBtn.style.background = "#cc0000";
+    } else {
+        // Switch to Disconnected State (Red)
+        statusEl.classList.remove("status-green");
+        statusEl.classList.add("status-red");
         connectBtn.textContent = "Connect to RESCU Device";
         connectBtn.style.background = "#800080";
-        isConnected = false;
+    }
+}
+
+connectBtn.addEventListener('click', () => {
+    if (isConnected) {
+        // 1. Send disconnect signal to the parent/system
+        window.parent.postMessage("DISCONNECT_BLE", "*");
+        // 2. Update local UI immediately for responsiveness
+        updateConnectionUI(false, "Disconnected");
     } else {
-        // Connect flow
         statusEl.textContent = "Searching...";
+        // Send connect signal to the parent
         window.parent.postMessage("CONNECT_BLE", "*");
     }
 });
 
 window.addEventListener("message", (event) => {
-    // Handle Connection Status
-    if (event.data.type === "STATUS") {
-        statusEl.textContent = event.data.value;
-        statusEl.style.color = "#4df153";
-        statusEl.classList.add("online");
+    // Handle Connection Success
+    if (event.data.type === "STATUS" && event.data.value === "Connected") {
+        statusEl.textContent = "Connected";
+        // Apply the green color class
+        statusEl.classList.remove("status-red");
+        statusEl.classList.add("status-green");
 
-        // Switch button to Disconnect
         isConnected = true;
         connectBtn.textContent = "Disconnect from RESCU Device";
-        connectBtn.style.background = "#cc0000";
+        connectBtn.style.background = "#cc0000"; // Optional: turn button red for 'Stop'
     }
 
-    // Handle Battery Updates
+    // Handle Disconnection (Manual or Error)
+    if (event.data.type === "DISCONNECTED") {
+        statusEl.textContent = "Disconnected";
+        // Revert to the red color class
+        statusEl.classList.remove("status-green");
+        statusEl.classList.add("status-red");
+
+        isConnected = false;
+        connectBtn.textContent = "Connect to RESCU Device";
+        connectBtn.style.background = "#800080"; // Revert button to original purple
+    }
+
+    // Update battery if data is received
     if (event.data.type === "BATTERY_UPDATE") {
         batteryEl.textContent = event.data.value;
     }
@@ -236,6 +269,6 @@ window.addEventListener("message", (event) => {
     }
 });
 </script>
-    
+
 </body>
 </html>

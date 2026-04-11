@@ -141,6 +141,32 @@
 
         <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
 
+    <div style="text-align: center; margin-bottom: 20px;">
+        <form action="{{ url_for('test_alert') }}" method="POST">
+            <button type="submit" class="action-item" style="background: #FF4500; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                Trigger Test Fall Alert
+            </button>
+        </form>
+    </div>
+
+    <nav class="action-list">
+        <a href="{{ url_for('edit_profile') }}" class="action-item" target="content-frame">
+            <span>Account Info</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('device_status') }}" class="action-item" target="content-frame">
+            <span>Device Settings</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item" target="content-frame">
+            <span>Emergency Contacts</span>
+            <span class="arrow">→</span>
+        </a>
+        <a href="{{ url_for('fall_history') }}" class="action-item" target="content-frame">
+            <span>Fall History</span>
+            <span class="arrow">→</span>
+        </a>
+    </nav>
     </div><!-- END .inner-wrapper -->
 
     <script>

@@ -178,30 +178,56 @@
 <script>
 const connectBtn = document.getElementById('connect-ble');
 const statusEl = document.getElementById('connection-status');
-
-// 1. Trigger connection in the Parent Shell
-connectBtn.addEventListener('click', () => {
-    statusEl.textContent = "Searching...";
-    window.parent.postMessage("CONNECT_BLE", "*");
-});
-
-// 2. Listen for status updates from the Parent Shell
-// Inside home.html script
 const batteryEl = document.getElementById('battery-val');
 
+let isConnected = false;
+
+connectBtn.addEventListener('click', () => {
+    if (isConnected) {
+        // Disconnect flow
+        window.parent.postMessage("DISCONNECT_BLE", "*");
+        statusEl.textContent = "Disconnected";
+        statusEl.style.color = "#ff4d4d";
+        statusEl.classList.remove("online");
+        connectBtn.textContent = "Connect to RESCU Device";
+        connectBtn.style.background = "#800080";
+        isConnected = false;
+    } else {
+        // Connect flow
+        statusEl.textContent = "Searching...";
+        window.parent.postMessage("CONNECT_BLE", "*");
+    }
+});
+
 window.addEventListener("message", (event) => {
-    // 1. Handle Connection Status
+    // Handle Connection Status
     if (event.data.type === "STATUS") {
         statusEl.textContent = event.data.value;
         statusEl.style.color = "#4df153";
         statusEl.classList.add("online");
+
+        // Switch button to Disconnect
+        isConnected = true;
+        connectBtn.textContent = "Disconnect from RESCU Device";
+        connectBtn.style.background = "#cc0000";
     }
 
-    // 2. Handle Battery Updates (Restored Functionality)
+    // Handle Battery Updates
     if (event.data.type === "BATTERY_UPDATE") {
         batteryEl.textContent = event.data.value;
     }
+
+    // Handle disconnection confirmed from parent
+    if (event.data.type === "DISCONNECTED") {
+        statusEl.textContent = "Disconnected";
+        statusEl.style.color = "#ff4d4d";
+        statusEl.classList.remove("online");
+        connectBtn.textContent = "Connect to RESCU Device";
+        connectBtn.style.background = "#800080";
+        isConnected = false;
+    }
 });
 </script>
+    
 </body>
 </html>

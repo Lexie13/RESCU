@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Account Info</title>
+    <title>Emergency Contacts</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
     <style>
         .inner-wrapper.vertical-bg {
             background: linear-gradient(180deg, #1E90FF, #800080);
@@ -16,322 +15,93 @@
             margin-bottom: 10px;
         }
 
-        /* --- Sliding Role Toggle Styles --- */
-        .role-slider-container {
-            background: #f1f1f1;
-            border-radius: 30px;
-            position: relative;
-            display: flex;
-            padding: 4px;
-            margin: 6px 0 0;
-            border: 1px solid #ddd;
-            height: 50px;
-            align-items: center;
+        /* Widen card for two inputs per row */
+        .page-card { max-width: 620px; }
+
+        /* Blue saved state (matches Account Info) */
+        .btn-save.saved {
+            background: #104E8B;
+            cursor: default;
         }
-
-        .role-slider-container input[type="radio"] {
-            display: none;
-        }
-
-        .role-slider-container label {
-            flex: 1;
-            z-index: 2;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 700;
-            color: #666;
-            transition: color 0.3s;
-            font-size: 15px;
-        }
-
-        .role-slider-container .slider-thumb {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            height: calc(100% - 8px);
-            background: #1E90FF;
-            border-radius: 26px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(30,144,255,0.3);
-        }
-
-        #role-caregiver:checked ~ .slider-thumb {
-            transform: translateX(100%);
-        }
-
-        #role-owner:checked ~ label[for="role-owner"],
-        #role-caregiver:checked ~ label[for="role-caregiver"] {
-            color: white;
-        }
-
-        /* --- Per-field save layout --- */
-        .field-group {
-            margin-bottom: 20px;
-        }
-
-        .field-group-inner {
-            display: flex;
-            gap: 10px;
-            align-items: stretch;
-            margin-top: 6px;
-        }
-
-        .field-group-inner input,
-        .field-group-inner .field-row {
-            flex: 1;
-        }
-
-        .field-group-inner input {
-            margin: 0;
-        }
-
-        .btn-save-inline {
-            background: #1E90FF;
-            color: white;
-            border: none;
-            padding: 0 18px;
-            height: 36px;
-            align-self: center;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 700;
-            font-family: 'Roboto', sans-serif;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.25s, transform 0.1s;
-            flex-shrink: 0;
-        }
-
-        .btn-save-inline:hover { background: #104E8B; }
-        .btn-save-inline.saved { background: #104E8B; cursor: default; }
-
-        .role-save-row {
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .btn-save-small {
-            background: #1E90FF;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 700;
-            font-family: 'Roboto', sans-serif;
-            cursor: pointer;
-            transition: background 0.2s;
-            width: auto;
-        }
-
-        .btn-save-small:hover { background: #104E8B; }
-        .btn-save-small.saved { background: #104E8B; cursor: default; }
-
-        .btn-save-pw {
-            display: block;
-            width: 100%;
-            padding: 13px;
-            margin-top: 14px;
-            border: none;
-            border-radius: 8px;
-            background: #1E90FF;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            font-family: 'Roboto', sans-serif;
-            cursor: pointer;
-            transition: background 0.25s;
-        }
-
-        .btn-save-pw:hover { background: #104E8B; }
-        .btn-save-pw.saved { background: #104E8B; cursor: default; }
     </style>
 </head>
 <body>
 <div class="inner-wrapper vertical-bg">
-
     <header class="page-header">
-        <h2>Account Info</h2>
-        <p>Update your personal details below.</p>
+        <h2>Emergency Contacts</h2>
+        <p>Add, remove, or reorder who gets notified.</p>
     </header>
-
     <div class="page-card">
-
-        <!-- Role -->
-        <div class="field-group">
-            <label class="field-label">Role</label>
-            <div class="role-slider-container">
-                <input type="radio" name="role" id="role-owner" value="owner"
-                       {% if user.role != 'caregiver' %}checked{% endif %}>
-                <label for="role-owner">Owner</label>
-
-                <input type="radio" name="role" id="role-caregiver" value="caregiver"
-                       {% if user.role == 'caregiver' %}checked{% endif %}>
-                <label for="role-caregiver">Caregiver</label>
-
-                <div class="slider-thumb"></div>
+        <form id="contacts-form" action="{{ url_for('edit_emergency_contacts') }}" method="POST">
+            <div id="contact-list">
+                {% for contact in contacts %}
+                <div class="contact-row">
+                    <span class="rank-badge">{{ loop.index }}</span>
+                    <div class="order-controls">
+                        <button type="button" onclick="moveUp(this)">▲</button>
+                        <button type="button" onclick="moveDown(this)">▼</button>
+                    </div>
+                    <input type="text"  name="contact_name"  value="{{ contact.name }}"  placeholder="Full Name"      required>
+                    <input type="email" name="contact_email" value="{{ contact.email }}" placeholder="Email Address"  required>
+                    <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
+                </div>
+                {% endfor %}
             </div>
-            <div class="role-save-row">
-                <button class="btn-save-small" onclick="saveField(this, 'role')">Save role</button>
+            <div class="contacts-footer">
+                <button type="button" class="btn-secondary" onclick="addRow()">+ Add Contact</button>
+                <button type="submit" class="btn-save" id="save-btn">Save Changes</button>
             </div>
-        </div>
-
-        <hr>
-
-        <!-- First Name -->
-        <div class="field-group">
-            <label class="field-label">First Name</label>
-            <div class="field-group-inner">
-                <input type="text" id="first_name" name="first_name"
-                       value="{{ user.first_name or '' }}" placeholder="First Name">
-                <button class="btn-save-inline" onclick="saveField(this, 'first_name')">Save</button>
-            </div>
-        </div>
-
-        <!-- Last Name -->
-        <div class="field-group">
-            <label class="field-label">Last Name</label>
-            <div class="field-group-inner">
-                <input type="text" id="last_name" name="last_name"
-                       value="{{ user.last_name or '' }}" placeholder="Last Name">
-                <button class="btn-save-inline" onclick="saveField(this, 'last_name')">Save</button>
-            </div>
-        </div>
-
-        <!-- Email -->
-        <div class="field-group">
-            <label class="field-label">Email Address</label>
-            <div class="field-group-inner">
-                <input type="email" id="email" name="email"
-                       value="{{ user.email or '' }}" placeholder="Email Address">
-                <button class="btn-save-inline" onclick="saveField(this, 'email')">Save</button>
-            </div>
-        </div>
-
-        <!-- Username (read-only) -->
-        <div class="field-group">
-            <label class="field-label">Username</label>
-            <input type="text" value="{{ username }}" disabled
-                   style="margin-top:6px; background:#f0f0f0; color:#999; cursor:not-allowed;">
-        </div>
-
-        <hr>
-
-        <!-- Password -->
-        <div>
-            <label class="field-label">Password</label>
-            <div style="margin-top: 6px;">
-                <button type="button" class="btn-secondary" onclick="togglePassword(this)">
-                    Change Password
-                </button>
-            </div>
-            <div class="password-fields" id="password-fields">
-                <label class="field-label" for="new_password" style="margin-top: 12px;">New Password</label>
-                <input type="password" id="new_password" name="new_password" placeholder="New Password">
-                <label class="field-label" for="confirm_password">Confirm Password</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm New Password">
-                <div class="error-msg" id="pw-error">Passwords do not match.</div>
-                <button class="btn-save-pw" onclick="savePassword(this)">Save Password</button>
-            </div>
-        </div>
-
-        {% if error %}
-        <div class="error-msg show" style="margin-top: 16px;">{{ error }}</div>
-        {% endif %}
-
+        </form>
     </div>
-
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
 </div>
-
 <script>
-function saveField(btn, field) {
-    const payload = {};
-
-    if (field === 'role') {
-        const selected = document.querySelector('input[name="role"]:checked');
-        if (!selected) return;
-        payload.role = selected.value;
-    } else if (field === 'first_name') {
-        const val = document.getElementById('first_name').value.trim();
-        if (!val) { alert('Please enter a first name.'); return; }
-        payload.first_name = val;
-    } else if (field === 'last_name') {
-        const val = document.getElementById('last_name').value.trim();
-        if (!val) { alert('Please enter a last name.'); return; }
-        payload.last_name = val;
-    } else if (field === 'email') {
-        const email = document.getElementById('email').value.trim();
-        if (!email) { alert('Please enter an email address.'); return; }
-        payload.email = email;
-    }
-
-    fetch("{{ url_for('edit_profile') }}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.classList.add('saved');
-        btn.disabled = true;
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('saved');
-            btn.disabled = false;
-        }, 800);
-    })
-    .catch(() => alert('Could not save. Please try again.'));
+function updateRanks() {
+    document.querySelectorAll('.contact-row').forEach((row, i) => {
+        const badge = row.querySelector('.rank-badge');
+        if (badge) badge.textContent = i + 1;
+    });
 }
-
-function togglePassword(btn) {
-    const fields = document.getElementById('password-fields');
-    const open = fields.classList.toggle('open');
-    btn.textContent = open ? 'Cancel' : 'Change Password';
-    if (!open) {
-        document.getElementById('new_password').value = '';
-        document.getElementById('confirm_password').value = '';
-        document.getElementById('pw-error').classList.remove('show');
-    }
+function addRow() {
+    const list = document.getElementById('contact-list');
+    if (list.children.length >= 5) { alert('Maximum of 5 contacts allowed.'); return; }
+    const row = document.createElement('div');
+    row.className = 'contact-row';
+    row.innerHTML = `
+        <span class="rank-badge"></span>
+        <div class="order-controls">
+            <button type="button" onclick="moveUp(this)">▲</button>
+            <button type="button" onclick="moveDown(this)">▼</button>
+        </div>
+        <input type="text"  name="contact_name"  placeholder="Full Name"     required>
+        <input type="email" name="contact_email" placeholder="Email Address" required>
+        <button type="button" class="delete-btn" onclick="removeRow(this)">✕</button>
+    `;
+    list.appendChild(row);
+    updateRanks();
 }
-
-function savePassword(btn) {
-    const np  = document.getElementById('new_password').value;
-    const cp  = document.getElementById('confirm_password').value;
-    const err = document.getElementById('pw-error');
-
-    if (!np || np !== cp) {
-        err.classList.add('show');
-        setTimeout(() => err.classList.remove('show'), 3000);
-        return;
-    }
-
-    err.classList.remove('show');
-
-    fetch("{{ url_for('edit_profile') }}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_password: np })
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.classList.add('saved');
-        btn.disabled = true;
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('saved');
-            btn.disabled = false;
-            togglePassword(document.querySelector('.btn-secondary'));
-        }, 800);
-    })
-    .catch(() => alert('Could not save password. Please try again.'));
+function removeRow(btn) {
+    btn.closest('.contact-row').remove();
+    updateRanks();
 }
+function moveUp(btn) {
+    const row = btn.closest('.contact-row');
+    const prev = row.previousElementSibling;
+    if (prev) { row.parentNode.insertBefore(row, prev); updateRanks(); }
+}
+function moveDown(btn) {
+    const row = btn.closest('.contact-row');
+    const next = row.nextElementSibling;
+    if (next) { row.parentNode.insertBefore(next, row); updateRanks(); }
+}
+window.onload = updateRanks;
+document.getElementById('contacts-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('save-btn');
+    btn.textContent = '✓ Saved!';
+    btn.classList.add('saved');
+    setTimeout(() => { btn.classList.remove('saved'); btn.textContent = 'Save Changes'; this.submit(); }, 900);
+});
 </script>
 </body>
 </html>

@@ -91,9 +91,18 @@
             margin: 0;
         }
 
-        /* Force email row to same height as the two-input name row */
+        /* Lock both rows to the same height */
+        .field-group-inner .field-row,
         .field-group-inner > input[type="email"] {
             height: 49px;
+        }
+
+        .field-group-inner .field-row > div {
+            height: 100%;
+        }
+
+        .field-group-inner .field-row input {
+            height: 100%;
         }
 
         .btn-save-inline {

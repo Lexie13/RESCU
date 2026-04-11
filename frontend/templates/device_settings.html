@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Device Settings — R.E.S.C.U.</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='inner.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Specific tweaks to match your Account Info page logic */
+        .inner-wrapper {
+            background: linear-gradient(135deg, #1E90FF, #800080);
+        }
+
+        .field-group-inner {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .field-group-inner input {
+            flex: 1;
+            margin: 0 !important;
+        }
+
+        /* Inline save button style to match your Account Info page */
+        .btn-save-inline {
+            background: #1E90FF;
+            color: white;
+            border: none;
+            padding: 0 18px;
+            height: 46px; /* Matching input height */
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.25s;
+            white-space: nowrap;
+        }
+
+        .btn-save-inline:hover { background: #104E8B; }
+        .btn-save-inline.saved { background: #104E8B; cursor: default; }
+
+        /* Range Slider Styling */
+        .slider-container {
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        .range-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #eee;
+            outline: none;
+            margin: 15px 0;
+            -webkit-appearance: none;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1E90FF;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .delay-display {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1E90FF;
+        }
+
+        /* Test Fall Section */
+        .test-zone {
+            margin-top: 10px;
+            padding: 20px;
+            background: #fff5f5;
+            border: 2px dashed #ff4d4d;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .btn-test {
+            background: #FF4500;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.1s;
+        }
+        .btn-test:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+<div class="inner-wrapper">
+    <header class="page-header">
+        <div class="site-name">R.E.S.C.U.</div>
+        <h2>Device Settings</h2>
+        <p>Configure your wearable hardware preferences.</p>
+    </header>
+
+    <div class="page-card">
+        
+        <div class="field-group">
+            <label class="field-label">Bluetooth Device Name</label>
+            <div class="field-group-inner">
+                <input type="text" id="device_name" value="{{ device_name or 'RESCU-Wearable' }}" placeholder="e.g. My RESCU Device">
+                <button class="btn-save-inline" onclick="saveSetting(this, 'device_name')">Save</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="field-group">
+            <label class="field-label">Alert Delay Period</label>
+            <p style="font-size: 13px; color: #777; margin: 4px 0;">Time to wait before notifying contacts after a fall.</p>
+            <div class="slider-container">
+                <span class="delay-display" id="delay-val">5</span><span style="font-weight: 700; color: #1E90FF;">s</span>
+                <input type="range" id="fall_delay" min="2" max="10" value="5" class="range-slider" oninput="updateDelay(this.value)">
+                <button class="btn-primary" onclick="saveSetting(this, 'fall_delay')">Update Delay Period</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="test-zone">
+            <label class="field-label" style="color: #FF4500; margin: 0;">Safety Test</label>
+            <p style="font-size: 12px; color: #666; margin: 5px 0;">Verify that alerts reach your emergency contacts.</p>
+            <form action="{{ url_for('test_alert') }}" method="POST" style="margin: 0;">
+                <button type="submit" class="btn-test">
+                    Trigger Test Fall Alert
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
+</div>
+
+<script>
+    function updateDelay(val) {
+        document.getElementById('delay-val').textContent = val;
+    }
+
+    function saveSetting(btn, settingKey) {
+        const payload = {};
+        
+        if (settingKey === 'device_name') {
+            payload.device_name = document.getElementById('device_name').value.trim();
+        } else if (settingKey === 'fall_delay') {
+            payload.fall_delay = document.getElementById('fall_delay').value;
+        }
+
+        // Simulating the same Save feedback as your Account Info page
+        const originalText = btn.textContent;
+        
+        fetch("/device-status", { // Assuming your route handles POST for settings
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            btn.textContent = '✓ Saved!';
+            btn.classList.add('saved');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.classList.remove('saved');
+                btn.disabled = false;
+            }, 1000);
+        })
+        .catch(() => alert('Failed to update setting.'));
+    }
+</script>
+
+</body>
+</html>

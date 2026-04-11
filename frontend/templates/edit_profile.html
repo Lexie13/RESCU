@@ -284,6 +284,8 @@ function saveField(btn, field) {
             btn.classList.remove('saved');
             btn.disabled = false;
         }, 800);
+    })
+    .catch(() => alert('Could not save. Please try again.'));
 }
 
 function togglePassword(btn) {

@@ -31,6 +31,7 @@
 <script>
     // --- PERSISTENT STATE ---
     let bleServer = null;
+    let isDeviceConnected = false
     const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
@@ -96,59 +97,64 @@
 
 // --- 3. BLUETOOTH GESTURE LISTENER ---
 window.addEventListener("message", async (event) => {
-    // CONNECT LOGIC
-    if (event.data === "CONNECT_BLE") {
-        try {
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [FALL_SERVICE_UUID] }],
-                optionalServices: [BATTERY_SERVICE_UUID]
-            });
 
-            bleServer = await device.gatt.connect();
+// 1. CONNECT LOGIC
+if (event.data === "CONNECT_BLE") {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [FALL_SERVICE_UUID] }],
+            optionalServices: [BATTERY_SERVICE_UUID]
+        });
 
-            // Notify the home frame that we are connected
-            frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+        bleServer = await device.gatt.connect();
+        isDeviceConnected = true;
 
-            // Setup Battery Notifications
-            const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
-            const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
-            await battChar.startNotifications();
-            battChar.addEventListener('characteristicvaluechanged', (e) => {
-                const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                if (data.type === "BATTERY") {
-                    frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
-                }
-            });
+        // --- NEW: Discover Battery Service & Start Notifications ---
+        const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
+        const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
 
-            // Setup Fall Alert Notifications
-            const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
-            const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
-            await fallChar.startNotifications();
-            fallChar.addEventListener('characteristicvaluechanged', (e) => {
-                const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                if (data.type === "FALL") {
-                    sendFallToBackend(data);
-                }
-            });
+        // Immediate Read to force update UI as fast as possible
+        const initialVal = await battChar.readValue();
+        const initialData = JSON.parse(new TextDecoder().decode(initialVal));
+        frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: initialData.battery_pct + "%"}, "*");
 
-        } catch (err) {
-            console.error("BLE Connection Error:", err);
-            // Reset home UI if user cancels the pairing dialog
-            frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
-        }
+        // Start listening for future changes
+        await battChar.startNotifications();
+        battChar.addEventListener('characteristicvaluechanged', (e) => {
+            const data = JSON.parse(new TextDecoder().decode(e.target.value));
+            frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
+        });
+
+        // Notify home frame that connection is successful
+        frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+
+    } catch (err) {
+        console.error("BLE Connection Error:", err);
+        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+        isDeviceConnected = false;
     }
+}
 
-    // NEW: DISCONNECT LOGIC
+    // 2. DISCONNECT LOGIC
     if (event.data === "DISCONNECT_BLE") {
         if (bleServer && bleServer.connected) {
             bleServer.disconnect();
-            console.log("BLE Device Disconnected manually.");
         }
         bleServer = null;
-        // Tell the home frame to update its UI
+        isDeviceConnected = false;
         frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
     }
 
+
+    // 3. STATUS CHECK (The Fix)
+    if (event.data === "GET_CONNECTION_STATUS") {
+        if (isDeviceConnected) {
+            // Send back to the source of the message (the newly loaded iframe)
+            event.source.postMessage({type: "STATUS", value: "Connected"}, "*");
+        } else {
+            event.source.postMessage({type: "DISCONNECTED"}, "*");
+        }
+    }
 });
 </script>
 </body>

@@ -1,6 +1,8 @@
+const SESSION_USER_ID = "{{ user_id }}";
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RESCU</title>
@@ -84,6 +86,15 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            
+            fetch('/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: SESSION_USER_ID,   // see note below
+                location: `${lat}, ${lon}`
+            })
+        });
 
         }, (err) => {
             alert("FALL DETECTED! (Location Unavailable)");
@@ -92,6 +103,15 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mcu: bleData, location: null })
             });
+
+            fetch('/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: SESSION_USER_ID,
+                location: "Location Unavailable"
+            })
+        });
         }, { enableHighAccuracy: true });
     }
 

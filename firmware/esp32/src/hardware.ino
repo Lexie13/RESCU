@@ -2,29 +2,43 @@
 #include "JoyIT_LSM6DS3TR-C.h"
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>
 #include "TensorFlowLite_ESP32.h"
-// #include "esp32_fall_detector_waist_big.h"
 #include "esp32_fall_detector_waist_small.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include "esp_sleep.h"
+#include "driver/rtc_io.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// ── No new libraries needed ───────────────────────────────────────────────
+// BLEDevice, BLEServer, BLEUtils, BLE2902 are all part of the ESP32 Arduino core
+// freertos headers are also built-in
 
 LSM6DS3TR_C  imu;
 SFE_MAX1704X lipo;
 
+// ── Pins ──────────────────────────────────────────────────────────────────
 #define I2C_SCL     20
 #define I2C_SDA     22
-#define LED_STATUS  25
-#define LED_POWER   26
+#define LED_STATUS  15   // bluetooth
+#define LED_POWER   33   // power
+#define LED_BAT     32   // low battery
 #define BTN_DEFAULT 38
-#define BTN_POWER   14
-#define BTN_ALERT   15
+#define BTN_POWER   27
+#define BTN_ALERT   34   // 39 is original, 34 for testing
 
+// ── Fall detection config ─────────────────────────────────────────────────
 #define WINDOW_SIZE         476
 #define CHANNELS            6
 #define FALL_THRESH         0.958f
 #define SAMPLE_US           4202
-
 #define SVM_TRIGGER_G       2.5f
 #define GYR_TRIGGER_DPS     100.0f
 #define CNN_DELAY_MS        1336UL
@@ -32,40 +46,61 @@ SFE_MAX1704X lipo;
 #define STILLNESS_SAMPLES   50
 #define ALERT_TIMEOUT_MS    10000UL
 #define COOLDOWN_MS         5000UL
+#define BATTERY_READ_MS     3000UL
+#define SLEEP_HOLD_MS       3000UL
+#define CALIB_SAMPLES       50
 
-// Read battery every 30 seconds — fuel gauge is slow, no need to poll faster
-#define BATTERY_READ_MS     30000UL
+// ── BLE config ────────────────────────────────────────────────────────────
+#define DEVICE_ID            "RESCU_001"
+#define BLE_BATTERY_MS       10000UL   // send battery over BLE every 10s
 
-// // -------BIG---------------------------------------------------
-// const float SCALER_MEAN[6]  = { 0.0678f, -0.7340f, -0.0180f,
-//                                   0.8214f, -0.1086f,  0.3141f };
-// const float SCALER_SCALE[6] = { 0.4739f,  0.5771f,  0.4738f,
-//                                  39.1045f, 66.3920f, 49.8927f };
+// Fall alert characteristic has both NOTIFY (device→app) and WRITE (app→device)
+// App writes any value to cancel the fall alert remotely
+#define FALL_SERVICE_UUID    "18a0ceb2-c728-41f4-af01-f06e15051107"
+#define FALL_ALERT_UUID      "44c94768-6610-4039-83eb-07919b82d665"
+#define BATTERY_SERVICE_UUID "fe39738b-d108-4571-9ece-8ee6bd1633c9"
+#define BATTERY_LEVEL_UUID   "3dd2fe2e-ce13-442e-8165-3dd67b99ce5d"
 
-// -------SMALL-------------------------------------------------
+// ── Axis layout ───────────────────────────────────────────────────────────
+// X = vertical, Y = side-to-side, Z = front-to-back
+// CNN channels: [Y, X*sign, Z, gyroY, gyroX*sign, gyroZ]
+
+// ── Scaler ────────────────────────────────────────────────────────────────
 const float SCALER_MEAN[6]  = { 0.067819f, -0.734005f, -0.018085f,
                                   0.821446f, -0.108692f,  0.314144f };
 const float SCALER_SCALE[6] = { 0.434421f,  0.577117f,  0.473865f,
                                  39.104501f, 66.392083f, 49.89272f };
 
-enum SystemState { IDLE, WAITING_FOR_CNN, RUNNING_CNN, FALL_DETECTED, EMERGENCY };
-SystemState state = IDLE;
+float vertical_sign = -1.0f;
 
+// ── State machine ─────────────────────────────────────────────────────────
+enum SystemState { IDLE, WAITING_FOR_CNN, RUNNING_CNN, FALL_DETECTED, EMERGENCY };
+
+// volatile so both cores see changes immediately
+volatile SystemState state = IDLE;
+
+// ── Shared variables between cores ───────────────────────────────────────
+// These are read by BLE task (Core 0) and written by fall detection (Core 1)
+// or vice versa. Protected by state_mutex where needed.
+volatile bool  fall_signal         = false;   // Core 1 sets, BLE task reads
+volatile bool  emergency_signal    = false;   // Core 1 sets, BLE task reads
+volatile bool  ble_cancel_request  = false;   // BLE task sets, Core 1 reads
+volatile float battery_soc_shared  = 0.0f;   // Core 1 sets, BLE task reads
+volatile bool  device_connected    = false;   // BLE callbacks set, both read
+
+SemaphoreHandle_t state_mutex;   // protects state + signal flags
+
+// ── Fall detection globals (Core 1 only) ─────────────────────────────────
 float circ_buf[WINDOW_SIZE][CHANNELS];
 int   write_head   = 0;
 bool  buf_ready    = false;
 int   sample_count = 0;
-
-bool fall_signal      = false;
-bool emergency_signal = false;
-
-// ── Battery state ─────────────────────────────────────────────────────────
-double battery_voltage = 0.0;
-double battery_soc     = 0.0;   // state of charge (%)
+double battery_soc = 0.0;
+bool   battery_low = false;
 
 namespace {
   tflite::ErrorReporter*    error_reporter = nullptr;
-  const tflite::Model*      model          = nullptr;
+  const tflite::Model*      tflite_model   = nullptr;
   tflite::MicroInterpreter* interpreter    = nullptr;
   TfLiteTensor* input  = nullptr;
   TfLiteTensor* output = nullptr;
@@ -73,41 +108,195 @@ namespace {
   uint8_t* tensor_arena = nullptr;
 }
 
-unsigned long last_sample_us  = 0;
-unsigned long last_trigger_ms = 0;
-unsigned long last_ui_ms      = 0;
-unsigned long last_msg_ms     = 0;
-unsigned long last_battery_ms = 0;
-unsigned long fall_start_ms   = 0;
-unsigned long svm_trigger_ms  = 0;
-
-bool lastBtnState = HIGH;
+unsigned long last_sample_us       = 0;
+unsigned long last_trigger_ms      = 0;
+unsigned long last_ui_ms           = 0;
+unsigned long last_msg_ms          = 0;
+unsigned long last_battery_ms      = 0;
+unsigned long fall_start_ms        = 0;
+unsigned long svm_trigger_ms       = 0;
+unsigned long power_btn_held_since = 0;
+bool          power_btn_was_held   = false;
+bool          lastPowerBtnState    = HIGH;
+bool          lastBtnState         = HIGH;
 
 Acceleration acceleration;
 Gyroscope    gyroscope;
 float        temperature;
 
-// ── Battery read function ─────────────────────────────────────────────────
-// Returns state of charge (0.0 - 100.0 %).
-// Also updates battery_voltage and battery_soc globals and prints both.
-float readBattery() {
-  battery_voltage = lipo.getVoltage();
-  battery_soc     = lipo.getSOC();
+// ── BLE globals (Core 0 task) ─────────────────────────────────────────────
+BLEServer*         pServer        = nullptr;
+BLECharacteristic* pFallAlert     = nullptr;
+BLECharacteristic* pBatteryLevel  = nullptr;
+bool               needsAdvRestart = false;
+int                fallCount       = 0;
+unsigned long      last_ble_bat_ms = 0;
 
-  Serial.print("[Battery] ");
-  Serial.print(battery_voltage, 2);
-  Serial.print(" V  |  ");
-  Serial.print(battery_soc, 1);
-  Serial.println(" %");
+// ── BLE helpers ───────────────────────────────────────────────────────────
+String getReadableTime() {
+  unsigned long s = millis() / 1000;
+  char buffer[10];
+  sprintf(buffer, "%02lu:%02lu:%02lu", (s / 3600), (s % 3600) / 60, s % 60);
+  return String(buffer);
+}
 
-  if (battery_soc < 20.0) {
-    Serial.println("[Battery] WARNING: Low battery!");
+void sendFallAlert() {
+  if (device_connected) {
+    fallCount++;
+    String payload = "{\"type\":\"FALL\",\"device_id\":\"" DEVICE_ID "\","
+                     "\"fall_count\":" + String(fallCount) +
+                     ",\"timestamp\":\"" + getReadableTime() + "\"}";
+    pFallAlert->setValue(payload.c_str());
+    pFallAlert->notify();
+    Serial.println("[BLE] Fall alert sent: " + payload);
   }
+}
 
+void sendBatteryLevel() {
+  if (device_connected) {
+    String payload = "{\"type\":\"BATTERY\",\"device_id\":\"" DEVICE_ID "\","
+                     "\"battery_pct\":" + String((int)battery_soc_shared) +
+                     ",\"timestamp\":\"" + getReadableTime() + "\"}";
+    pBatteryLevel->setValue(payload.c_str());
+    pBatteryLevel->notify();
+  }
+}
+
+// ── BLE server callbacks ──────────────────────────────────────────────────
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    device_connected = true;
+    Serial.println("[BLE] Device connected.");
+    // Send battery immediately on connect
+    sendBatteryLevel();
+  }
+  void onDisconnect(BLEServer* pServer) {
+    device_connected  = false;
+    needsAdvRestart   = true;
+    Serial.println("[BLE] Device disconnected.");
+  }
+};
+
+// ── Fall alert WRITE callback — app cancels alert by writing any value ────
+class FallAlertCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* pChar) {
+    // App wrote to the characteristic — treat as cancel request
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    ble_cancel_request = true;
+    xSemaphoreGive(state_mutex);
+    Serial.println("[BLE] Cancel request received from app.");
+  }
+};
+
+// ── BLE task — runs on Core 0 ─────────────────────────────────────────────
+// Handles advertising restart and periodic battery notifications.
+// Fall alert is sent reactively when fall_signal is set by Core 1.
+void ble_task(void* pvParams) {
+  unsigned long last_fall_signal = false;
+
+  for (;;) {
+    unsigned long now_ms = millis();
+
+    // Restart advertising after disconnect (non-blocking, no delay())
+    if (needsAdvRestart && (now_ms - last_ble_bat_ms >= 500)) {
+      BLEDevice::startAdvertising();
+      needsAdvRestart  = false;
+      last_ble_bat_ms  = now_ms;
+      Serial.println("[BLE] Advertising restarted.");
+    }
+
+    // Send fall alert when fall_signal goes HIGH (edge detect)
+    bool current_fall;
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    current_fall = fall_signal;
+    xSemaphoreGive(state_mutex);
+
+    if (current_fall && !last_fall_signal) {
+      sendFallAlert();
+    }
+    last_fall_signal = current_fall;
+
+    // Send battery every 10 seconds
+    if (device_connected && (now_ms - last_ble_bat_ms >= BLE_BATTERY_MS)) {
+      last_ble_bat_ms = now_ms;
+      sendBatteryLevel();
+    }
+
+    // Yield to BLE stack — 20ms is enough, doesn't affect Core 1 at all
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+// ── Hardware functions (Core 1) ───────────────────────────────────────────
+void calibrateVerticalAxis() {
+  Serial.println("[Calib] Measuring vertical axis...");
+  float sum = 0.0f;
+  for (int i = 0; i < CALIB_SAMPLES; i++) {
+    imu.readAll(acceleration, gyroscope, temperature);
+    sum += acceleration.x;
+    delay(5);
+  }
+  float avg_x = sum / CALIB_SAMPLES;
+  if (avg_x > 0.0f) {
+    vertical_sign = -1.0f;
+    Serial.print("[Calib] Right-side up (acc.x="); Serial.print(avg_x, 3); Serial.println("g).");
+  } else {
+    vertical_sign = 1.0f;
+    Serial.print("[Calib] Upside down (acc.x="); Serial.print(avg_x, 3); Serial.println("g).");
+  }
+}
+
+void updateBatLED(unsigned long now_ms) {
+  digitalWrite(LED_BAT, battery_low ? (now_ms / 500) % 2 : LOW);
+}
+
+void enterDeepSleep() {
+  Serial.println("[Power] Entering deep sleep.");
+  Serial.flush();
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_POWER, HIGH); delay(200);
+    digitalWrite(LED_POWER, LOW);  delay(200);
+  }
+  digitalWrite(LED_STATUS, LOW);
+  digitalWrite(LED_BAT,    LOW);
+  digitalWrite(LED_POWER,  LOW);
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_DEFAULT, 0);
+  rtc_gpio_pullup_en((gpio_num_t)BTN_DEFAULT);
+  rtc_gpio_pulldown_dis((gpio_num_t)BTN_DEFAULT);
+  esp_deep_sleep_start();
+}
+
+void checkPowerButton(unsigned long now_ms) {
+  if (millis() < 2000) return;
+  bool currentPowerBtn = digitalRead(BTN_DEFAULT);
+  if (currentPowerBtn == LOW) {
+    if (lastPowerBtnState == HIGH) {
+      power_btn_held_since = now_ms;
+      power_btn_was_held   = false;
+    } else if (!power_btn_was_held) {
+      if ((now_ms - power_btn_held_since) >= SLEEP_HOLD_MS) {
+        power_btn_was_held = true;
+        enterDeepSleep();
+      }
+    }
+  } else {
+    if (!power_btn_was_held) digitalWrite(LED_POWER, HIGH);
+    power_btn_was_held = false;
+  }
+  lastPowerBtnState = currentPowerBtn;
+}
+
+float readBattery() {
+  battery_soc = lipo.getSOC();
+  battery_low = (battery_soc < 20.0);
+  battery_soc_shared = (float)battery_soc;   // update shared value for BLE task
+
+  Serial.print("[Battery] "); Serial.print(battery_soc, 1); Serial.print(" %");
+  if (battery_low) Serial.print("  *** LOW ***");
+  Serial.println();
   return (float)battery_soc;
 }
 
-// ── Run CNN inference ─────────────────────────────────────────────────────
 float run_inference() {
   int oldest = write_head;
   for (int i = 0; i < WINDOW_SIZE; i++) {
@@ -116,51 +305,36 @@ float run_inference() {
       input->data.f[i * CHANNELS + c] = circ_buf[idx][c];
     }
   }
-
   if (interpreter->Invoke() != kTfLiteOk) {
-    Serial.println("Invoke failed!");
-    return 0.0f;
+    Serial.println("Invoke failed!"); return 0.0f;
   }
-
   if (output->type == kTfLiteFloat32) {
     return output->data.f[0];
   } else if (output->type == kTfLiteInt8) {
     int8_t quantized_val = output->data.int8[0];
-    float  scale         = output->params.scale;
-    int    zero_point    = output->params.zero_point;
-    return (quantized_val - zero_point) * scale;
-  } else {
-    Serial.println("Unknown output tensor type!");
-    return 0.0f;
+    return (quantized_val - output->params.zero_point) * output->params.scale;
   }
+  Serial.println("Unknown output type!"); return 0.0f;
 }
 
-// ── Post-event stillness check (Standard Deviation) ──────────────────────
 float check_stillness() {
-  float ax_arr[STILLNESS_SAMPLES];
-  float ay_arr[STILLNESS_SAMPLES];
-  float az_arr[STILLNESS_SAMPLES];
+  float ax_arr[STILLNESS_SAMPLES], ay_arr[STILLNESS_SAMPLES], az_arr[STILLNESS_SAMPLES];
   float sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
-
   for (int i = 0; i < STILLNESS_SAMPLES; i++) {
     int idx = (write_head - 1 - i + WINDOW_SIZE) % WINDOW_SIZE;
     ax_arr[i] = circ_buf[idx][0] * SCALER_SCALE[0] + SCALER_MEAN[0];
     ay_arr[i] = circ_buf[idx][1] * SCALER_SCALE[1] + SCALER_MEAN[1];
     az_arr[i] = circ_buf[idx][2] * SCALER_SCALE[2] + SCALER_MEAN[2];
-    sum_x += ax_arr[i];
-    sum_y += ay_arr[i];
-    sum_z += az_arr[i];
+    sum_x += ax_arr[i]; sum_y += ay_arr[i]; sum_z += az_arr[i];
   }
-
   float mean_x = sum_x / STILLNESS_SAMPLES;
   float mean_y = sum_y / STILLNESS_SAMPLES;
   float mean_z = sum_z / STILLNESS_SAMPLES;
-
   float variance = 0.0f;
   for (int i = 0; i < STILLNESS_SAMPLES; i++) {
-    variance += (ax_arr[i] - mean_x) * (ax_arr[i] - mean_x) +
-                (ay_arr[i] - mean_y) * (ay_arr[i] - mean_y) +
-                (az_arr[i] - mean_z) * (az_arr[i] - mean_z);
+    variance += (ax_arr[i]-mean_x)*(ax_arr[i]-mean_x) +
+                (ay_arr[i]-mean_y)*(ay_arr[i]-mean_y) +
+                (az_arr[i]-mean_z)*(az_arr[i]-mean_z);
   }
   return sqrtf(variance / STILLNESS_SAMPLES);
 }
@@ -168,78 +342,123 @@ float check_stillness() {
 // ── Setup ─────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
+
   pinMode(LED_STATUS,  OUTPUT);
   pinMode(LED_POWER,   OUTPUT);
+  pinMode(LED_BAT,     OUTPUT);
   pinMode(BTN_DEFAULT, INPUT_PULLUP);
   pinMode(BTN_POWER,   INPUT_PULLUP);
   pinMode(BTN_ALERT,   INPUT_PULLUP);
 
+  digitalWrite(LED_POWER,  HIGH);
+  digitalWrite(LED_STATUS, LOW);
+  digitalWrite(LED_BAT,    LOW);
+
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  Serial.println(wakeup_reason == ESP_SLEEP_WAKEUP_EXT0
+    ? "[Power] Woke from deep sleep." : "[Power] Fresh boot.");
+
   Wire.begin(I2C_SDA, I2C_SCL);
   Wire.setClock(400000);
   imu.begin();
+  calibrateVerticalAxis();
 
-  // ── Fuel gauge init ───────────────────────────────────────────────────
   if (lipo.begin() == false) {
     Serial.println("MAX17043 not detected. Check wiring.");
-    // Not fatal — fall detection still works without battery monitoring
   } else {
     lipo.quickStart();
-    lipo.setThreshold(20);   // trigger alert flag below 20%
+    lipo.setThreshold(20);
     Serial.println("Fuel gauge ready.");
-    readBattery();            // print initial battery level on boot
+    readBattery();
   }
 
   // ── TFLite init ───────────────────────────────────────────────────────
-  Serial.println("Allocating tensor arena...");
   tensor_arena = (uint8_t*)malloc(kTensorArenaSize);
-  if (!tensor_arena) {
-    Serial.println("MALLOC FAILED");
-    while (1);
-  }
+  if (!tensor_arena) { Serial.println("MALLOC FAILED"); while (1); }
 
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
-  // model = tflite::GetModel(esp32_fall_detector_waist_big_tflite);
-  model = tflite::GetModel(esp32_fall_detector_waist_small_tflite);
-  if (model->version() != TFLITE_SCHEMA_VERSION) {
+  tflite_model = tflite::GetModel(esp32_fall_detector_waist_small_tflite);
+  if (tflite_model->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!"); while (1);
   }
 
   static tflite::AllOpsResolver resolver;
   static tflite::MicroInterpreter static_interpreter(
-      model, resolver, tensor_arena, kTensorArenaSize, error_reporter);
+      tflite_model, resolver, tensor_arena, kTensorArenaSize, error_reporter);
   interpreter = &static_interpreter;
 
   if (interpreter->AllocateTensors() != kTfLiteOk) {
     Serial.println("AllocateTensors FAILED"); while (1);
   }
-
-  Serial.print("Arena used: ");
-  Serial.print(interpreter->arena_used_bytes());
-  Serial.println(" bytes");
-
+  Serial.print("Arena used: "); Serial.print(interpreter->arena_used_bytes()); Serial.println(" bytes");
   input  = interpreter->input(0);
   output = interpreter->output(0);
+
+  // ── BLE init ──────────────────────────────────────────────────────────
+  BLEDevice::init("RESCU_DEVICE");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallbacks());
+
+  // Fall service — NOTIFY to push alerts, WRITE so app can cancel
+  BLEService* pFallService = pServer->createService(FALL_SERVICE_UUID);
+  pFallAlert = pFallService->createCharacteristic(
+      FALL_ALERT_UUID,
+      BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_WRITE);
+  pFallAlert->addDescriptor(new BLE2902());
+  pFallAlert->setCallbacks(new FallAlertCallbacks());
+  pFallService->start();
+
+  // Battery service
+  BLEService* pBattService = pServer->createService(BATTERY_SERVICE_UUID);
+  pBatteryLevel = pBattService->createCharacteristic(
+      BATTERY_LEVEL_UUID,
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  pBatteryLevel->addDescriptor(new BLE2902());
+  pBattService->start();
+
+  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(FALL_SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("[BLE] Advertising started.");
+
+  // ── Mutex + BLE task on Core 0 ────────────────────────────────────────
+  state_mutex = xSemaphoreCreateMutex();
+  xTaskCreatePinnedToCore(
+      ble_task,    // function
+      "ble_task",  // name
+      4096,        // stack size
+      NULL,        // params
+      1,           // priority
+      NULL,        // handle
+      0            // Core 0
+  );
+
   Serial.println("Ready. Monitoring for falls...");
 }
 
-// ── Main loop ─────────────────────────────────────────────────────────────
+// ── Main loop — Core 1 (fall detection) ───────────────────────────────────
 void loop() {
   unsigned long now_us = micros();
   unsigned long now_ms = millis();
 
-  // ── 1. Sample IMU at 238Hz ─────────────────────────────────────────────
-  if (now_us - last_sample_us >= SAMPLE_US) {
+  checkPowerButton(now_ms);
+
+  // ── 1. Sample IMU at 238Hz (only when BLE connected) ─────────────────
+  if (device_connected && (now_us - last_sample_us >= SAMPLE_US)) {
     last_sample_us = now_us;
 
     imu.readAll(acceleration, gyroscope, temperature);
     float raw[6] = {
-      acceleration.x,
-      -acceleration.y,   // flipped — training had gravity as negative Y
+      acceleration.y,
+      vertical_sign * acceleration.x,
       acceleration.z,
-      gyroscope.x,
       gyroscope.y,
+      vertical_sign * gyroscope.x,
       gyroscope.z
     };
 
@@ -250,7 +469,7 @@ void loop() {
     sample_count++;
     if (sample_count >= WINDOW_SIZE) buf_ready = true;
 
-    // ── 2. Pre-screener ────────────────────────────────────────────────────
+    // ── 2. Pre-screener ───────────────────────────────────────────────────
     if (buf_ready && state == IDLE) {
       float svm     = sqrtf(raw[0]*raw[0] + raw[1]*raw[1] + raw[2]*raw[2]);
       float gyr_mag = sqrtf(raw[3]*raw[3] + raw[4]*raw[4] + raw[5]*raw[5]);
@@ -266,7 +485,7 @@ void loop() {
       }
     }
 
-    // ── 3. Fire CNN after delay ────────────────────────────────────────────
+    // ── 3. Fire CNN after delay ───────────────────────────────────────────
     if (state == WAITING_FOR_CNN && (now_ms - svm_trigger_ms >= CNN_DELAY_MS)) {
       state = RUNNING_CNN;
       float prob    = run_inference();
@@ -275,24 +494,22 @@ void loop() {
       Serial.print("[CNN] prob="); Serial.print(prob);
       Serial.print("  [Stillness] StdDev="); Serial.println(std_dev);
 
-      if (prob >= FALL_THRESH) {
-        if (std_dev < STILLNESS_STD_DEV_G) {
-          Serial.println(">>> FALL CONFIRMED");
-          state         = FALL_DETECTED;
-          fall_start_ms = millis();
-        } else {
-          Serial.println("[Rejected] Post-event motion detected (ADL)");
-          state = IDLE;
-        }
+      if (prob >= FALL_THRESH && std_dev < STILLNESS_STD_DEV_G) {
+        Serial.println(">>> FALL CONFIRMED");
+        xSemaphoreTake(state_mutex, portMAX_DELAY);
+        state       = FALL_DETECTED;
+        fall_signal = true;   // BLE task picks this up and sends alert
+        xSemaphoreGive(state_mutex);
+        fall_start_ms = millis();
       } else {
-        Serial.println("[CNN] Not a fall.");
+        Serial.println(prob < FALL_THRESH ? "[CNN] Not a fall." : "[Rejected] Post-event motion.");
         state = IDLE;
       }
     }
   }
 
-  // ── 4. Battery read every 30 seconds ──────────────────────────────────
-  if (now_ms - last_battery_ms >= BATTERY_READ_MS) {
+  // ── 4. Battery read (only when BLE connected) ─────────────────────────
+  if (device_connected && (now_ms - last_battery_ms >= BATTERY_READ_MS)) {
     last_battery_ms = now_ms;
     readBattery();
   }
@@ -300,16 +517,31 @@ void loop() {
   // ── 5. UI & state machine at 100ms ────────────────────────────────────
   if (now_ms - last_ui_ms >= 100) {
     last_ui_ms = now_ms;
+    updateBatLED(now_ms);
 
-    bool currentBtnState   = digitalRead(BTN_DEFAULT);
-    bool buttonJustPressed = (currentBtnState == LOW && lastBtnState == HIGH);
+    bool currentBtnState   = digitalRead(BTN_ALERT);
+    bool buttonJustPressed = (millis() > 5000) &&
+                             (currentBtnState == LOW && lastBtnState == HIGH);
+
+    // Check if BLE app requested cancel
+    bool app_cancel = false;
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    if (ble_cancel_request) {
+      app_cancel        = true;
+      ble_cancel_request = false;
+    }
+    xSemaphoreGive(state_mutex);
 
     switch (state) {
       case IDLE:
         digitalWrite(LED_STATUS, LOW);
         if (buttonJustPressed) {
           Serial.println("Manual SOS triggered.");
-          state = EMERGENCY;
+          xSemaphoreTake(state_mutex, portMAX_DELAY);
+          state           = EMERGENCY;
+          emergency_signal = true;
+          fall_signal      = true;   // also send BLE alert for manual SOS
+          xSemaphoreGive(state_mutex);
         }
         break;
 
@@ -322,7 +554,6 @@ void loop() {
         break;
 
       case FALL_DETECTED: {
-        fall_signal = true;
         digitalWrite(LED_STATUS, HIGH);
         unsigned long elapsed   = now_ms - fall_start_ms;
         unsigned long remaining = (elapsed < ALERT_TIMEOUT_MS)
@@ -331,25 +562,34 @@ void loop() {
           last_msg_ms = now_ms;
           Serial.print("Fall alert — "); Serial.print(remaining); Serial.println("s to cancel");
         }
-        if (buttonJustPressed) {
+
+        // Cancel from button OR from app
+        if (buttonJustPressed || app_cancel) {
+          Serial.println(app_cancel ? "App cancelled alert." : "User cancelled alert.");
+          xSemaphoreTake(state_mutex, portMAX_DELAY);
           fall_signal = false;
-          Serial.println("User cancelled — returning to IDLE");
-          state = IDLE;
+          state       = IDLE;
+          xSemaphoreGive(state_mutex);
         }
         if (elapsed > ALERT_TIMEOUT_MS) {
           Serial.println("!!! EMERGENCY — no user response !!!");
-          state = EMERGENCY;
+          xSemaphoreTake(state_mutex, portMAX_DELAY);
+          state            = EMERGENCY;
+          emergency_signal = true;
+          xSemaphoreGive(state_mutex);
         }
         break;
       }
 
       case EMERGENCY:
-        emergency_signal = true;
         digitalWrite(LED_STATUS, (now_ms / 100) % 2);
-        if (buttonJustPressed) {
+        if (buttonJustPressed || app_cancel) {
+          Serial.println(app_cancel ? "App reset emergency." : "Emergency cancelled by user.");
+          xSemaphoreTake(state_mutex, portMAX_DELAY);
+          state            = IDLE;
           emergency_signal = false;
-          Serial.println("Emergency cancelled by user.");
-          state = IDLE;
+          fall_signal      = false;
+          xSemaphoreGive(state_mutex);
         }
         break;
     }

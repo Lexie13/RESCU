@@ -129,6 +129,14 @@ if (event.data === "CONNECT_BLE") {
         bleServer = await device.gatt.connect();
         isDeviceConnected = true;
 
+        // Fires when ESP32 drops connection (deep sleep, power off, out of range)
+        device.addEventListener('gattserverdisconnected', () => {
+            console.log("Device disconnected.");
+            bleServer = null;
+            isDeviceConnected = false;
+            frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+        });
+
         // --- Discover Battery Service & Start Notifications ---
         const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
         const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);

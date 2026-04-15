@@ -116,7 +116,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location"):
                 )
 
                 # 3. POLL THE DATABASE FOR ACKNOWLEDGMENT
-                wait_time_seconds = 60
+                wait_time_seconds = 15
                 poll_interval = 5
                 iterations = wait_time_seconds // poll_interval
 

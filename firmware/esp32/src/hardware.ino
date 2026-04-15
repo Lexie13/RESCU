@@ -32,7 +32,7 @@ SFE_MAX1704X lipo;
 #define LED_BAT     32   // low battery
 #define BTN_DEFAULT 38
 #define BTN_POWER   27
-#define BTN_ALERT   34   // 39 is original, 34 for testing
+#define BTN_ALERT   28   // 39 is original, 34 for testing with prototype 1
 
 // ── Fall detection config ─────────────────────────────────────────────────
 #define WINDOW_SIZE         476

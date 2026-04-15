@@ -201,4 +201,59 @@
 </script>
 
 </body>
+<div id="fall-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+     background:rgba(255,0,0,0.85); z-index:9999; flex-direction:column;
+     align-items:center; justify-content:center; color:white; text-align:center;">
+    <h1 style="font-size:3rem;">🚨 FALL DETECTED</h1>
+    <p style="font-size:1.2rem;" id="fall-countdown">Alerting contacts in 10s...</p>
+    <button onclick="cancelFallAlert()"
+        style="margin-top:20px; padding:20px 40px; font-size:1.5rem;
+               background:white; color:red; border:none; border-radius:12px;
+               font-weight:700; cursor:pointer;">
+        I'M OK — Cancel Alert
+    </button>
+</div>
+
+<script>
+let countdownInterval = null;
+
+function showFallAlert() {
+    const overlay = document.getElementById('fall-overlay');
+    overlay.style.display = 'flex';
+    let seconds = 10;
+    document.getElementById('fall-countdown').textContent = `Alerting contacts in ${seconds}s...`;
+    countdownInterval = setInterval(() => {
+        seconds--;
+        document.getElementById('fall-countdown').textContent = `Alerting contacts in ${seconds}s...`;
+        if (seconds <= 0) clearInterval(countdownInterval);
+    }, 1000);
+}
+
+function hideFallAlert() {
+    document.getElementById('fall-overlay').style.display = 'none';
+    clearInterval(countdownInterval);
+}
+
+function cancelFallAlert() {
+    hideFallAlert();
+    window.parent.postMessage("CANCEL_FALL", "*");  // tell parent to write to ESP32
+}
+
+// Listen for messages from parent
+window.addEventListener("message", (event) => {
+    if (event.data.type === "STATUS" && event.data.value === "Connected") {
+        updateConnectionUI(true, "Connected");
+    }
+    if (event.data.type === "DISCONNECTED") {
+        updateConnectionUI(false, "Disconnected");
+        hideFallAlert();  // hide alert if device disconnects
+    }
+    if (event.data.type === "BATTERY_UPDATE") {
+        batteryEl.textContent = event.data.value;
+    }
+    if (event.data.type === "FALL_ALERT") {
+        showFallAlert();  // ← show overlay instead of browser alert()
+    }
+});
+</script>
 </html>

@@ -167,9 +167,23 @@ if (event.data === "CONNECT_BLE") {
         fallChar.addEventListener('characteristicvaluechanged', (e) => {
             const data = JSON.parse(new TextDecoder().decode(e.target.value));
             if (data.type === "FALL") {
+                // Show overlay in iframe instead of browser alert
+                frame.contentWindow.postMessage({type: "FALL_ALERT", data: data}, "*");
+                // Still send to backend for email
                 sendFallToBackend(data);
             }
         });
+
+        // Add cancel handler in the message listener:
+        if (event.data === "CANCEL_FALL") {
+            if (fallChar) {
+                const encoder = new TextEncoder();
+                fallChar.writeValue(encoder.encode("cancel"))
+                    .then(() => console.log("[BLE] Cancel sent to device."))
+                    .catch(err => console.error("[BLE] Cancel write failed:", err));
+            }
+        }
+
 
     } catch (err) {
         console.error("BLE Connection Error:", err);

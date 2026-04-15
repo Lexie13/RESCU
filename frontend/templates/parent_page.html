@@ -33,6 +33,8 @@
     // --- PERSISTENT STATE ---
     let bleServer = null;
     let isDeviceConnected = false
+    let bleDevice = null;
+    let fallChar = null;
 
     const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
@@ -57,63 +59,47 @@
 
     // --- 2. BACKEND & POPUP LOGIC ---
     function sendFallToBackend(bleData) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const lat = pos.coords.latitude.toFixed(4);
-            const lon = pos.coords.longitude.toFixed(4);
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude.toFixed(4);
+        const lon = pos.coords.longitude.toFixed(4);
 
-            // Detailed alert with location info
-            alert(
-                `🚨 RESCU ALERT: Fall Detected!\n\n` +
-                `Device: ${bleData.device_id}\n` +
-                `Location: ${lat}, ${lon}\n` +
-                `Time: ${bleData.timestamp}\n\n` +
-                `Alerting emergency contacts...
+        const cancelled = !confirm(
+            `🚨 RESCU ALERT: Fall Detected!\n\n` +
+            `Device: ${bleData.device_id}\n` +
+            `Location: ${lat}, ${lon}\n` +
+            `Time: ${bleData.timestamp}\n\n` +
+            `Press OK to alert emergency contacts.\n` +
+            `Press Cancel if you are okay.`
+        );
 
-                jk thats not set up`
-            );
+        if (cancelled) {
+            // User pressed Cancel — write to ESP32 to cancel alert
+            if (fallChar) {
+                const encoder = new TextEncoder();
+                fallChar.writeValue(encoder.encode("cancel"))
+                    .catch(err => console.error("Cancel write failed:", err));
+            }
+            return;  // don't send to backend
+        }
 
-            const payload = {
-                mcu: bleData,
-                location: {
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy
-                }
-            };
+        // User pressed OK — send to backend
+        const payload = { mcu: bleData, location: { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy } };
+        fetch('/process-fall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        fetch('/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: SESSION_USER_ID, location: `${lat}, ${lon}` }) });
 
-            fetch('/process-fall', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            
-            fetch('/alert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: SESSION_USER_ID,   // see note below
-                location: `${lat}, ${lon}`
-            })
-        });
-
-        }, (err) => {
-            alert("FALL DETECTED! (Location Unavailable)");
-            fetch('/process-fall', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mcu: bleData, location: null })
-            });
-
-            fetch('/alert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: SESSION_USER_ID,
-                location: "Location Unavailable"
-            })
-        });
-        }, { enableHighAccuracy: true });
-    }
+    }, (err) => {
+        const cancelled = !confirm(`🚨 FALL DETECTED!\n\nLocation unavailable.\n\nPress OK to alert contacts.\nPress Cancel if you are okay.`);
+        if (cancelled) {
+            if (fallChar) {
+                const encoder = new TextEncoder();
+                fallChar.writeValue(encoder.encode("cancel")).catch(err => console.error("Cancel write failed:", err));
+            }
+            return;
+        }
+        fetch('/process-fall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mcu: bleData, location: null }) });
+        fetch('/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: SESSION_USER_ID, location: "Location Unavailable" }) });
+    }, { enableHighAccuracy: true });
+}
 
 // --- 3. BLUETOOTH GESTURE LISTENER ---
 window.addEventListener("message", async (event) => {
@@ -125,6 +111,8 @@ if (event.data === "CONNECT_BLE") {
             filters: [{ services: [FALL_SERVICE_UUID] }],
             optionalServices: [BATTERY_SERVICE_UUID]
         });
+        
+        bleDevice = device;
 
         bleServer = await device.gatt.connect();
         isDeviceConnected = true;
@@ -158,7 +146,7 @@ if (event.data === "CONNECT_BLE") {
 
         // Subscribe to fall alert notifications
         const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
-        const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
+        fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
         await fallChar.startNotifications();
         fallChar.addEventListener('characteristicvaluechanged', (e) => {
             const data = JSON.parse(new TextDecoder().decode(e.target.value));

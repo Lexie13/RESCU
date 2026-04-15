@@ -1,177 +1,293 @@
 import boto3
-import os
-import time
+import bcrypt
 import uuid
+import jwt
 import datetime
+import os
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 
+# Configuration
 region = os.environ.get("AWS_REGION", "us-east-1")
 dynamodb = boto3.resource("dynamodb", region_name=region)
+table_logins = dynamodb.Table("logins")
 table_users = dynamodb.Table("users")
-table_alerts = dynamodb.Table("alerts")
-sns_client = boto3.client("sns")
 
+# Initialize SNS client
+sns_client = boto3.client("sns", region_name=region)
 SNS_TOPIC_ARN = os.environ.get(
     "EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
 )
-API_GATEWAY_URL = os.environ.get(
-    "API_GATEWAY_URL", "https://mi8iapyuya.execute-api.us-east-1.amazonaws.com"
-)
+
+SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
 
 
-def trigger_emergency_email_loop(user_id, location_data="No Location"):
+def subscribe_email_to_alerts(email):
+    """
+    Subscribes a new email address to the SNS topic. 
+    AWS will automatically send a confirmation email to this address.
+    """
     try:
-        response = table_users.get_item(Key={"user_id": user_id})
-        user_profile = response.get("Item")
-
-        if not user_profile:
-            return {"success": False, "error": "User profile not found in database."}
-
-        contacts = user_profile.get("emergency_contacts", [])
-        if not contacts:
-            return {
-                "success": False,
-                "error": "No emergency contacts found for this user.",
-            }
-
-        parsed_contacts = []
-        for item in contacts:
-            contact_map = item.get("M", item) if isinstance(item, dict) else item
-
-            raw_email = contact_map.get("email")
-            contact_email = (
-                raw_email.get("S") if isinstance(raw_email, dict) else raw_email
-            )
-
-            raw_name = contact_map.get("name")
-            contact_name = raw_name.get("S") if isinstance(raw_name, dict) else raw_name
-
-            raw_priority = contact_map.get("priority", 99)
-            priority = (
-                int(raw_priority.get("N", 99))
-                if isinstance(raw_priority, dict)
-                else int(raw_priority)
-            )
-
-            if contact_email:
-                parsed_contacts.append(
-                    {"name": contact_name, "email": contact_email, "priority": priority}
-                )
-
-        parsed_contacts.sort(key=lambda x: x.get("priority", 99))
-
-        # 1. CREATE THE ALERT RECORD
-        alert_id = str(uuid.uuid4())
-        table_alerts.put_item(
-            Item={
-                "alert_id": alert_id,
-                "user_id": user_id,
-                "status": "PENDING",
-                "created_at": datetime.datetime.utcnow().isoformat(),
-            }
+        sns_client.subscribe(
+            TopicArn=SNS_TOPIC_ARN,
+            Protocol='email',
+            Endpoint=email
         )
+    except Exception as e:
+        print(f"SNS Subscription failed for {email}: {str(e)}")
 
-        notified_contacts = []
-        is_acknowledged = False
 
-        # 2. ITERATE AND SEND
-        for contact in parsed_contacts:
-            contact_email = contact["email"]
-            contact_name = contact["name"] or "Emergency Contact"
+def put_new_user(
+    username,
+    password,
+    first_name,
+    last_name,
+    phone,
+    email,
+    role="primary_user",
+    emergency_contacts=None,
+):
+    """
+    Creates entries in both 'logins' and 'users' tables linked by
+    a common user_id.
+    """
+    if emergency_contacts is None:
+        emergency_contacts = []
 
-            # The link the contact will click
-            ack_link = (
-                f"{API_GATEWAY_URL}/alert/acknowledge?"
-                f"alert_id={alert_id}&email={contact_email}"
+    user_id = str(uuid.uuid4())
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt)
+
+    login_item = {
+        "user_id": user_id,
+        "username": username,
+        "password": hashed_password.decode("utf-8"),
+        "role": role,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
+
+    user_profile_item = {
+        "user_id": user_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "phone_number": phone,
+        "email": email,
+        "emergency_contacts": emergency_contacts,
+    }
+
+    try:
+        table_logins.put_item(
+            Item=login_item, ConditionExpression="attribute_not_exists(user_id)"
+        )
+        table_users.put_item(Item=user_profile_item)
+
+        # Subscribe each contact email provided during signup
+        if emergency_contacts:
+            for contact in emergency_contacts:
+                # Handle both potential list formats (Direct dict or DynamoDB 'M' wrapper)
+                contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                email_addr = contact_map.get("email")
+                if isinstance(email_addr, dict):
+                    email_addr = email_addr.get("S")
+
+                if email_addr:
+                    subscribe_email_to_alerts(email_addr)
+
+        return {"success": True, "user_id": user_id}
+    except ClientError as e:
+        return {"success": False, "error": str(e)}
+
+
+def authenticate_user(username, password):
+    """
+    Checks credentials and retrieves the linked profile data from
+    the 'users' table.
+    """
+    try:
+        # 1. Find the user in the logins table using the GSI
+        response = table_logins.query(
+            IndexName="username-index",
+            KeyConditionExpression=Key("username").eq(username),
+        )
+        items = response.get("Items", [])
+
+        if not items:
+            return {"success": False, "error": "Incorrect username or password"}
+
+        user_login = items[0]
+        user_id = user_login["user_id"]
+        stored_hash = user_login["password"].encode("utf-8")
+
+        # 2. Verify password
+        if bcrypt.checkpw(password.encode("utf-8"), stored_hash):
+            # 3. Retrieve profile data from the 'users' table
+            profile_response = table_users.get_item(Key={"user_id": user_id})
+            profile = profile_response.get("Item", {})
+
+            token = jwt.encode(
+                {
+                    "user_id": user_id,
+                    "username": user_login["username"],
+                    "role": user_login.get("role", "primary_user"),
+                    "exp": (datetime.datetime.utcnow() + datetime.timedelta(hours=24)),
+                },
+                SECRET_KEY,
+                algorithm="HS256",
             )
 
-            subject = "URGENT: RESCU Fall Detected - Action Required"
-            message = (
-                f"Hello {contact_name},\n\n"
-                f"This is an automated emergency alert from RESCU. "
-                f"A fall has been detected for the user you are "
-                f"monitoring.\\n\\n"
-                f"Last Known Location: {location_data}\n\n"
-                f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE "
-                f"HANDLING THIS:\n{ack_link}\n\n"
-                f"If you do not acknowledge this within 60 seconds, we will "
-                f"notify the next contact."
-            )
-
-            try:
-                sns_client.publish(
-                    TopicArn=SNS_TOPIC_ARN,
-                    Subject=subject,
-                    Message=message,
-                    MessageAttributes={
-                        "target_email": {
-                            "DataType": "String",
-                            "StringValue": contact_email,
-                        }
-                    },
-                )
-                notified_contacts.append(contact_email)
-                print(
-                    f"Alert sent to {contact_email}. " f"Waiting for acknowledgment..."
-                )
-
-                # 3. POLL THE DATABASE FOR ACKNOWLEDGMENT
-                wait_time_seconds = 60
-                poll_interval = 5
-                iterations = wait_time_seconds // poll_interval
-
-                for _ in range(iterations):
-                    time.sleep(poll_interval)
-
-                    # Check if status changed
-                    alert_record = table_alerts.get_item(
-                        Key={"alert_id": alert_id}
-                    ).get("Item")
-                    if alert_record and alert_record.get("status") == "ACKNOWLEDGED":
-                        is_acknowledged = True
-                        break  # Break the polling loop
-
-                if is_acknowledged:
-                    print(f"Alert {alert_id} acknowledged! Stopping loop.")
-                    break  # Break the contact list loop entirely
-
-            except ClientError as sns_err:
-                print(f"Failed to send SNS to {contact_email}: {sns_err}")
-                continue
-
-        if is_acknowledged:
             return {
                 "success": True,
-                "message": "Alert acknowledged",
-                "notified": notified_contacts,
-            }
-        else:
-            return {
-                "success": False,
-                "error": ("Loop finished, but no contact acknowledged the alert."),
+                "token": token,
+                "user_id": user_id,
+                "profile": profile,
             }
 
-    except ClientError as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "Incorrect username or password"}
+    except Exception as e:
+        print(f"Auth error: {str(e)}")
+        return {"success": False, "error": "Internal authentication error"}
 
 
-def acknowledge_alert(alert_id, contact_email):
+def delete_user(user_id):
     """
-    Updates the alert status to ACKNOWLEDGED.
+    Deletes the user from both the 'logins' and 'users' tables.
     """
     try:
-        table_alerts.update_item(
-            Key={"alert_id": alert_id},
-            UpdateExpression=(
-                "SET #st = :st, acknowledged_by = :ack, " "acknowledged_at = :time"
-            ),
-            ExpressionAttributeNames={"#st": "status"},
-            ExpressionAttributeValues={
-                ":st": "ACKNOWLEDGED",
-                ":ack": contact_email,
-                ":time": datetime.datetime.utcnow().isoformat(),
-            },
-        )
+        # Delete from security table
+        table_logins.delete_item(Key={"user_id": user_id})
+
+        # Delete from profile table
+        table_users.delete_item(Key={"user_id": user_id})
+
         return {"success": True}
     except ClientError as e:
+        print(f"Delete error: {e.response['Error']['Message']}")
         return {"success": False, "error": str(e)}
+
+
+def update_user(user_id, emergency_contacts=None, profile_updates=None):
+    """
+    Updates the user profile in 'users' and optionally the password in 'logins'.
+    """
+    try:
+        # 1. Update Profile Information (users table)
+        if emergency_contacts is not None or profile_updates is not None:
+            update_expr_parts = []
+            expr_attr_values = {}
+            expr_attr_names = {}
+
+            if emergency_contacts is not None:
+                update_expr_parts.append("emergency_contacts = :ec")
+                expr_attr_values[":ec"] = emergency_contacts
+
+                # Trigger SNS subscriptions for the new contact list
+                for contact in emergency_contacts:
+                    contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                    email_addr = contact_map.get("email")
+                    if isinstance(email_addr, dict):
+                        email_addr = email_addr.get("S")
+                    
+                    if email_addr:
+                        subscribe_email_to_alerts(email_addr)
+
+            if profile_updates is not None:
+                # Map frontend 'phone' to DynamoDB 'phone_number'
+                for field in ["first_name", "last_name", "phone", "email"]:
+                    db_field = "phone_number" if field == "phone" else field
+
+                    if field in profile_updates:
+                        # Use ExpressionAttributeNames to avoid reserved keyword conflicts
+                        expr_attr_names[f"#{db_field}"] = db_field
+                        update_expr_parts.append(f"#{db_field} = :{db_field}")
+                        expr_attr_values[f":{db_field}"] = profile_updates[field]
+
+            if update_expr_parts:
+                update_kwargs = {
+                    "Key": {"user_id": user_id},
+                    "UpdateExpression": "SET " + ", ".join(update_expr_parts),
+                    "ExpressionAttributeValues": expr_attr_values,
+                }
+                if expr_attr_names:
+                    update_kwargs["ExpressionAttributeNames"] = expr_attr_names
+
+                table_users.update_item(**update_kwargs)
+
+        # 2. Update Password (logins table) if provided
+        if profile_updates and "password" in profile_updates:
+            new_password = profile_updates["password"]
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode(
+                "utf-8"
+            )
+
+            table_logins.update_item(
+                Key={"user_id": user_id},
+                UpdateExpression="SET #pw = :pw",
+                ExpressionAttributeNames={"#pw": "password"},
+                ExpressionAttributeValues={":pw": hashed_password},
+            )
+
+        return {"success": True}
+
+    except ClientError as e:
+        print(f"Update error: {e.response['Error']['Message']}")
+        return {"success": False, "error": str(e)}
+
+
+def authenticate_oauth_user(email, first_name=None, last_name=None):
+    """
+    Authenticates an OAuth user. Creates a new profile if the email doesn't exist.
+    """
+    try:
+        # Check if user already exists
+        response = table_logins.query(
+            IndexName="username-index",
+            KeyConditionExpression=Key("username").eq(email),
+        )
+        items = response.get("Items", [])
+
+        if items:
+            # User exists
+            user_login = items[0]
+            user_id = user_login["user_id"]
+        else:
+            # User does not exist, create them with a dummy secure password
+            random_password = str(uuid.uuid4())
+            create_result = put_new_user(
+                username=email,
+                password=random_password,
+                first_name=first_name or "",
+                last_name=last_name or "",
+                phone="",
+                email=email,
+                role="primary_user",
+                emergency_contacts=[],
+            )
+
+            if not create_result.get("success"):
+                return {"success": False, "error": "Failed to create OAuth user"}
+
+            user_id = create_result["user_id"]
+            user_login = {"username": email, "role": "primary_user"}
+
+        # Retrieve profile data
+        profile_response = table_users.get_item(Key={"user_id": user_id})
+        profile = profile_response.get("Item", {})
+
+        # Generate Token
+        token = jwt.encode(
+            {
+                "user_id": user_id,
+                "username": user_login["username"],
+                "role": user_login.get("role", "primary_user"),
+                "exp": (datetime.datetime.utcnow() + datetime.timedelta(hours=24)),
+            },
+            SECRET_KEY,
+            algorithm="HS256",
+        )
+
+        return {"success": True, "token": token, "user_id": user_id, "profile": profile}
+
+    except Exception as e:
+        print(f"OAuth error: {str(e)}")
+        return {"success": False, "error": "Internal authentication error"}

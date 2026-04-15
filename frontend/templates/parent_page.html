@@ -33,6 +33,8 @@
     // --- PERSISTENT STATE ---
     let bleServer = null;
     let isDeviceConnected = false
+    let bleDevice = null;
+    let fallChar = null; 
 
     const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
@@ -125,6 +127,8 @@ if (event.data === "CONNECT_BLE") {
             filters: [{ services: [FALL_SERVICE_UUID] }],
             optionalServices: [BATTERY_SERVICE_UUID]
         });
+        
+        bleDevice = device;
 
         bleServer = await device.gatt.connect();
         isDeviceConnected = true;
@@ -158,6 +162,7 @@ if (event.data === "CONNECT_BLE") {
 
         // Subscribe to fall alert notifications
         const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
+        fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
         const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
         await fallChar.startNotifications();
         fallChar.addEventListener('characteristicvaluechanged', (e) => {

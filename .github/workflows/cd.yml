@@ -8,6 +8,7 @@ on:
       - store-login
       - frontend
       - test-alerts
+      - haejune
 
 permissions:
   id-token: write

@@ -1,5 +1,3 @@
-const SESSION_USER_ID = "{{ user_id }}";
-
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -31,9 +29,18 @@ const SESSION_USER_ID = "{{ user_id }}";
     <iframe src="{{ url_for('home') }}" name="content-frame" id="main-frame"></iframe>
 
 <script>
+    const SESSION_USER_ID = "{{ user_id }}";
     // --- PERSISTENT STATE ---
     let bleServer = null;
     let isDeviceConnected = false
+
+    // Fires when ESP32 drops connection (deep sleep, power off, out of range)
+    device.addEventListener('gattserverdisconnected', () => {
+        console.log("Device disconnected.");
+        bleServer = null;
+        isDeviceConnected = false;
+        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+    });
     const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';

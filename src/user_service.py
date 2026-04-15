@@ -6,6 +6,7 @@ import datetime
 import os
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.types import Binary
 
 # Configuration
 region = os.environ.get("AWS_REGION", "us-east-1")
@@ -13,7 +14,28 @@ dynamodb = boto3.resource("dynamodb", region_name=region)
 table_logins = dynamodb.Table("logins")
 table_users = dynamodb.Table("users")
 
+# Initialize SNS client
+sns_client = boto3.client("sns", region_name=region)
+SNS_TOPIC_ARN = os.environ.get(
+    "EMERGENCY_SNS_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:RESCU_Alerts"
+)
+
 SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
+
+
+def subscribe_email_to_alerts(email):
+    """
+    Subscribes a new email address to the SNS topic. 
+    AWS will automatically send a confirmation email to this address.
+    """
+    try:
+        sns_client.subscribe(
+            TopicArn=SNS_TOPIC_ARN,
+            Protocol='email',
+            Endpoint=email
+        )
+    except Exception as e:
+        print(f"SNS Subscription failed for {email}: {str(e)}")
 
 
 def put_new_user(
@@ -40,7 +62,7 @@ def put_new_user(
     login_item = {
         "user_id": user_id,
         "username": username,
-        "password": hashed_password.decode("utf-8"),
+        "password": Binary(hashed_password),  # Store as raw bytes wrapped in Binary
         "role": role,
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
@@ -59,6 +81,18 @@ def put_new_user(
             Item=login_item, ConditionExpression="attribute_not_exists(user_id)"
         )
         table_users.put_item(Item=user_profile_item)
+
+        # Subscribe each contact email provided during signup
+        if emergency_contacts:
+            for contact in emergency_contacts:
+                contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                email_addr = contact_map.get("email")
+                if isinstance(email_addr, dict):
+                    email_addr = email_addr.get("S")
+
+                if email_addr:
+                    subscribe_email_to_alerts(email_addr)
+
         return {"success": True, "user_id": user_id}
     except ClientError as e:
         return {"success": False, "error": str(e)}
@@ -82,7 +116,15 @@ def authenticate_user(username, password):
 
         user_login = items[0]
         user_id = user_login["user_id"]
-        stored_hash = user_login["password"].encode("utf-8")
+        
+        # Handle both the new Binary format and legacy string format
+        stored_password = user_login["password"]
+        if hasattr(stored_password, 'value'):
+            stored_hash = stored_password.value  # Extract bytes from Binary
+        elif isinstance(stored_password, str):
+            stored_hash = stored_password.encode("utf-8") # Fallback for old records
+        else:
+            stored_hash = stored_password
 
         # 2. Verify password
         if bcrypt.checkpw(password.encode("utf-8"), stored_hash):
@@ -105,8 +147,6 @@ def authenticate_user(username, password):
                 "success": True,
                 "token": token,
                 "user_id": user_id,
-                # Includes first_name, last_name, phone,
-                # emergency_contacts, etc.
                 "profile": profile,
             }
 
@@ -148,14 +188,23 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
                 update_expr_parts.append("emergency_contacts = :ec")
                 expr_attr_values[":ec"] = emergency_contacts
 
+                # Trigger SNS subscriptions for the new contact list
+                for contact in emergency_contacts:
+                    contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                    email_addr = contact_map.get("email")
+                    if isinstance(email_addr, dict):
+                        email_addr = email_addr.get("S")
+                    
+                    if email_addr:
+                        subscribe_email_to_alerts(email_addr)
+
             if profile_updates is not None:
                 # Map frontend 'phone' to DynamoDB 'phone_number'
                 for field in ["first_name", "last_name", "phone", "email"]:
                     db_field = "phone_number" if field == "phone" else field
 
                     if field in profile_updates:
-                        # Use ExpressionAttributeNames to avoid reserved
-                        # keyword conflicts
+                        # Use ExpressionAttributeNames to avoid reserved keyword conflicts
                         expr_attr_names[f"#{db_field}"] = db_field
                         update_expr_parts.append(f"#{db_field} = :{db_field}")
                         expr_attr_values[f":{db_field}"] = profile_updates[field]
@@ -175,15 +224,13 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
         if profile_updates and "password" in profile_updates:
             new_password = profile_updates["password"]
             salt = bcrypt.gensalt()
-            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode(
-                "utf-8"
-            )
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt)
 
             table_logins.update_item(
                 Key={"user_id": user_id},
                 UpdateExpression="SET #pw = :pw",
                 ExpressionAttributeNames={"#pw": "password"},
-                ExpressionAttributeValues={":pw": hashed_password},
+                ExpressionAttributeValues={":pw": Binary(hashed_password)},
             )
 
         return {"success": True}
@@ -210,8 +257,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             user_login = items[0]
             user_id = user_login["user_id"]
         else:
-            # User does not exist, create them with a
-            # dummy secure password
+            # User does not exist, create them with a dummy secure password
             random_password = str(uuid.uuid4())
             create_result = put_new_user(
                 username=email,

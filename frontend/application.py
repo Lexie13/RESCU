@@ -60,8 +60,6 @@ def signup_emergency():
 
         payload = session["temp_signup_data"]
         payload["emergency_contacts"] = contacts_list
-
-        # FIX: satisfy the backend API mandatory field requirement
         payload["phone"] = "000-000-0000"
 
         try:
@@ -104,7 +102,7 @@ def signup_emergency():
 
         except Exception as e:
             return render_template(
-                "signup_emergency.html", error=f"Request failed: {str(e)}"
+                "signup_emergency.html", error= f"Request failed: {str(e)}"
             )
 
     return render_template("signup_emergency.html")
@@ -164,7 +162,7 @@ def home():
         return redirect(url_for("index"))
 
     if request.headers.get("Sec-Fetch-Dest") != "iframe":
-        return render_template("parent_page.html")
+        return render_template("parent_page.html", user_id=session.get("user_id"))
 
     user_data = session.get("profile", {})
     return render_template(
@@ -186,9 +184,7 @@ def test_alert():
     }
 
     try:
-        # Calls the POST /alert route in your Lambda/API Gateway
         response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
-
         if response.status_code == 200:
             flash("Emergency loop triggered successfully! Check your email.", "success")
         else:
@@ -248,12 +244,8 @@ def edit_profile():
 
     if request.method == "POST":
         updated_profile = {
-            "first_name": request.form.get(
-                "first_name", profile.get("first_name", "")
-            ).strip(),
-            "last_name": request.form.get(
-                "last_name", profile.get("last_name", "")
-            ).strip(),
+            "first_name": request.form.get("first_name", profile.get("first_name", "")).strip(),
+            "last_name": request.form.get("last_name", profile.get("last_name", "")).strip(),
             "email": request.form.get("email", profile.get("email", "")).strip(),
             "role": request.form.get("role", profile.get("role", "owner")),
         }
@@ -292,30 +284,71 @@ def edit_profile():
     )
 
 
+# =========================
+# DEVICE SETTINGS
+# =========================
+@app.route("/device-status", methods=["GET", "POST"])
+def device_status():
+    if "username" not in session:
+        return redirect(url_for("index"))
+
+    # Ensure device_settings exists in the session profile
+    if "device_settings" not in session["profile"]:
+        session["profile"]["device_settings"] = {
+            "device_name": "RESCU-Wearable",
+            "fall_delay": 5
+        }
+
+    if request.method == "POST":
+        data = request.json
+        
+        # Update session with new settings
+        if "device_name" in data:
+            session["profile"]["device_settings"]["device_name"] = data["device_name"]
+        if "fall_delay" in data:
+            session["profile"]["device_settings"]["fall_delay"] = data["fall_delay"]
+        
+        session.modified = True
+
+        # Sync settings to the backend API Gateway
+        try:
+            requests.patch(
+                f"{API_GATEWAY_URL}/user",
+                json={
+                    "user_id": session.get("user_id"),
+                    "device_settings": session["profile"]["device_settings"],
+                },
+            )
+        except Exception as e:
+            print(f"Failed to sync device settings: {e}")
+            return {"status": "error", "message": str(e)}, 500
+
+        return {"status": "success"}, 200
+
+    # GET Request: Pass data to the template
+    settings = session["profile"].get("device_settings", {})
+    return render_template(
+        "device_settings.html", 
+        device_name=settings.get("device_name", "RESCU-Wearable"),
+        fall_delay=settings.get("fall_delay", 5)
+    )
+
+
 @app.route("/process-fall", methods=["POST"])
 def process_fall():
     data = request.json
-    # Pass the JS data into your moved script
     cap_xml = format_text.get_cap_xml_for_current_alert(data["mcu"], data["location"])
-
     print("Generated CAP XML:")
     print(cap_xml)
-
-    # Next step: Send cap_xml to your lambda_function.py or emergency service
     return {"status": "processed"}
 
 
 # =========================
-# STUB ROUTES
+# REMAINING STUBS
 # =========================
 @app.route("/fall-history")
 def fall_history():
     return "Fall History Page"
-
-
-@app.route("/device-status")
-def device_status():
-    return "Device Status Page"
 
 
 if __name__ == "__main__":

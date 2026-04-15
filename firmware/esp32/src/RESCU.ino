@@ -45,10 +45,18 @@ void sendBatteryLevel() {
 }
 
 class ServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) { deviceConnected = true; }
-    void onDisconnect(BLEServer* pServer) { 
-        deviceConnected = false; 
-        needsAdvertisingRestart = true; 
+    void onConnect(BLEServer* pServer) {
+        deviceConnected = true;
+        // Turn on LED
+        digitalWrite(LED_PIN, HIGH);
+        // Trigger immediate battery update upon connection
+        sendBatteryLevel();
+    }
+    void onDisconnect(BLEServer* pServer) {
+        deviceConnected = false;
+        // Turn off LED
+        digitalWrite(LED_PIN, LOW);
+        needsAdvertisingRestart = true;
     }
 };
 
@@ -76,7 +84,7 @@ void setup() {
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(FALL_SERVICE_UUID); // Critical for the browser filter
     pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);  
+    pAdvertising->setMinPreferred(0x06);
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
 
@@ -89,19 +97,17 @@ void loop() {
     }
 
     if (needsAdvertisingRestart) {
-        delay(500);
+        delay(100);
         BLEDevice::startAdvertising();
         needsAdvertisingRestart = false;
     }
 
     if (deviceConnected) {
-        digitalWrite(LED_PIN, HIGH);
         if (millis() - lastBatteryTime > 10000) {
             sendBatteryLevel();
             lastBatteryTime = millis();
         }
     } else {
-        digitalWrite(LED_PIN, LOW);
     }
     delay(10);
 }

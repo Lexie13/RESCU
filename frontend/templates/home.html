@@ -141,41 +141,20 @@
 
         <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
 
-    <div style="text-align: center; margin-bottom: 20px;">
-        <form action="{{ url_for('test_alert') }}" method="POST">
-            <button type="submit" class="action-item" style="background: #FF4500; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
-                Trigger Test Fall Alert
-            </button>
-        </form>
-    </div>
-
-    <nav class="action-list">
-        <a href="{{ url_for('edit_profile') }}" class="action-item" target="content-frame">
-            <span>Account Info</span>
-            <span class="arrow">→</span>
-        </a>
-        <a href="{{ url_for('device_status') }}" class="action-item" target="content-frame">
-            <span>Device Settings</span>
-            <span class="arrow">→</span>
-        </a>
-        <a href="{{ url_for('edit_emergency_contacts') }}" class="action-item" target="content-frame">
-            <span>Emergency Contacts</span>
-            <span class="arrow">→</span>
-        </a>
-        <a href="{{ url_for('fall_history') }}" class="action-item" target="content-frame">
-            <span>Fall History</span>
-            <span class="arrow">→</span>
-        </a>
-    </nav>
     </div><!-- END .inner-wrapper -->
-
-    <script>
+<script>
     const connectBtn = document.getElementById('connect-ble');
     const statusEl = document.getElementById('connection-status');
     const batteryEl = document.getElementById('battery-val');
 
     let isConnected = false;
 
+    // 1. Handshake: Ask parent for status immediately on load
+    window.addEventListener('DOMContentLoaded', () => {
+        window.parent.postMessage("GET_CONNECTION_STATUS", "*");
+    });
+
+    // 2. Central UI Manager
     function updateConnectionUI(connected, statusText) {
         isConnected = connected;
         statusEl.textContent = statusText;
@@ -190,9 +169,11 @@
             statusEl.classList.add("status-red");
             connectBtn.textContent = "Connect to RESCU Device";
             connectBtn.style.background = "#800080";
+            batteryEl.textContent = "--";
         }
     }
 
+    // 3. Button Click Handler
     connectBtn.addEventListener('click', () => {
         if (isConnected) {
             window.parent.postMessage("DISCONNECT_BLE", "*");
@@ -203,6 +184,7 @@
         }
     });
 
+    // 4. Message Listener (Handles responses from Parent)
     window.addEventListener("message", (event) => {
         if (event.data.type === "STATUS" && event.data.value === "Connected") {
             updateConnectionUI(true, "Connected");
@@ -216,7 +198,7 @@
             batteryEl.textContent = event.data.value;
         }
     });
-    </script>
+</script>
 
 </body>
 </html>

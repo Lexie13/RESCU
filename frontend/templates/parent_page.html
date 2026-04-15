@@ -1,6 +1,8 @@
+const SESSION_USER_ID = "{{ user_id }}";
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RESCU</title>
@@ -93,6 +95,7 @@
     let fallAlertTimeout = null;
     let countdownInterval = null;
 
+    let isDeviceConnected = false
     const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
@@ -150,6 +153,15 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            
+            fetch('/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: SESSION_USER_ID,   // see note below
+                location: `${lat}, ${lon}`
+            })
+        });
 
         }, (err) => {
             fetch('/process-fall', {
@@ -157,45 +169,90 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mcu: bleData, location: null })
             });
+
+            fetch('/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: SESSION_USER_ID,
+                location: "Location Unavailable"
+            })
+        });
         }, { enableHighAccuracy: true });
     }
 
-    // --- 3. BLUETOOTH & MESSAGE HANDLING ---
-    window.addEventListener("message", async (event) => {
-        if (event.data === "CONNECT_BLE") {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [FALL_SERVICE_UUID] }],
-                    optionalServices: [BATTERY_SERVICE_UUID]
-                });
+// --- 3. BLUETOOTH GESTURE LISTENER ---
+window.addEventListener("message", async (event) => {
 
-                bleServer = await device.gatt.connect();
-                frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+// 1. CONNECT LOGIC
+if (event.data === "CONNECT_BLE") {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [FALL_SERVICE_UUID] }],
+            optionalServices: [BATTERY_SERVICE_UUID]
+        });
 
-                const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
-                const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
-                await fallChar.startNotifications();
+        bleServer = await device.gatt.connect();
+        isDeviceConnected = true;
 
-                fallChar.addEventListener('characteristicvaluechanged', (e) => {
-                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
-                    if (data.type === "FALL") {
-                        // Start the 5-second wait instead of sending immediately
-                        startEmergencyGracePeriod(data);
-                    }
-                });
+        // --- NEW: Discover Battery Service & Start Notifications ---
+        const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
+        const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
 
-            } catch (err) {
-                console.error("BLE Connection Error:", err);
-                frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+        // Immediate Read to force update UI as fast as possible
+        const initialVal = await battChar.readValue();
+        const initialData = JSON.parse(new TextDecoder().decode(initialVal));
+        frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: initialData.battery_pct + "%"}, "*");
+
+        // Start listening for future changes
+        await battChar.startNotifications();
+        battChar.addEventListener('characteristicvaluechanged', (e) => {
+            const data = JSON.parse(new TextDecoder().decode(e.target.value));
+            frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
+        });
+
+        // Notify home frame that connection is successful
+        frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+
+        // Subscribe to fall alert notifications
+        const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
+        const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
+        await fallChar.startNotifications();
+        fallChar.addEventListener('characteristicvaluechanged', (e) => {
+            const data = JSON.parse(new TextDecoder().decode(e.target.value));
+            if (data.type === "FALL") {
+                sendFallToBackend(data);
             }
-        }
+        });
 
-        if (event.data === "DISCONNECT_BLE") {
-            if (bleServer && bleServer.connected) bleServer.disconnect();
-            bleServer = null;
-            frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+    } catch (err) {
+        console.error("BLE Connection Error:", err);
+        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+        isDeviceConnected = false;
+    }
+}
+
+    // 2. DISCONNECT LOGIC
+    if (event.data === "DISCONNECT_BLE") {
+        if (bleServer && bleServer.connected) {
+            bleServer.disconnect();
         }
-    });
+        bleServer = null;
+        isDeviceConnected = false;
+        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+    }
+
+
+    // 3. STATUS CHECK (The Fix)
+    if (event.data === "GET_CONNECTION_STATUS") {
+        if (isDeviceConnected) {
+            // Send back to the source of the message (the newly loaded iframe)
+            event.source.postMessage({type: "STATUS", value: "Connected"}, "*");
+        } else {
+            event.source.postMessage({type: "DISCONNECTED"}, "*");
+        }
+    }
+});
 </script>
 </body>
 </html>

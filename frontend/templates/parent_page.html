@@ -163,7 +163,6 @@ if (event.data === "CONNECT_BLE") {
         // Subscribe to fall alert notifications
         const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
         fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
-        const fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
         await fallChar.startNotifications();
         fallChar.addEventListener('characteristicvaluechanged', (e) => {
             const data = JSON.parse(new TextDecoder().decode(e.target.value));

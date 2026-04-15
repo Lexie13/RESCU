@@ -33,8 +33,15 @@ def lambda_handler(event, context):
         body_raw = event.get("body", "{}")
         body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
 
+        # ROUTE: Warm-up ping (GET /ping)
+        if method == "GET" and "ping" in path.lower():
+            return {
+                "statusCode": 200,
+                "body": json.dumps({"status": "warm"})
+            }
+
         # ROUTE: Create User (PUT /login)
-        if method == "PUT" and "login" in path.lower():
+        elif method == "PUT" and "login" in path.lower():
             username = body.get("username")
             password = body.get("password")
             first_name = body.get("first_name")

@@ -4,6 +4,7 @@ import uuid
 import jwt
 import datetime
 import os
+import json
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.types import Binary
@@ -27,12 +28,19 @@ def subscribe_email_to_alerts(email):
     """
     Subscribes a new email address to the SNS topic. 
     AWS will automatically send a confirmation email to this address.
+    Applies a FilterPolicy so this endpoint only receives targeted emails.
     """
     try:
         sns_client.subscribe(
             TopicArn=SNS_TOPIC_ARN,
             Protocol='email',
-            Endpoint=email
+            Endpoint=email,
+            Attributes={
+                # The FilterPolicy must be passed as a JSON string
+                'FilterPolicy': json.dumps({
+                    "target_email": [email]
+                })
+            }
         )
     except Exception as e:
         print(f"SNS Subscription failed for {email}: {str(e)}")

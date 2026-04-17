@@ -26,21 +26,19 @@ SECRET_KEY = os.environ.get("JWT_SECRET", "fallback-dev-secret-only")
 
 def subscribe_email_to_alerts(email):
     """
-    Subscribes a new email address to the SNS topic. 
+    Subscribes a new email address to the SNS topic.
     AWS will automatically send a confirmation email to this address.
     Applies a FilterPolicy so this endpoint only receives targeted emails.
     """
     try:
         sns_client.subscribe(
             TopicArn=SNS_TOPIC_ARN,
-            Protocol='email',
+            Protocol="email",
             Endpoint=email,
             Attributes={
                 # The FilterPolicy must be passed as a JSON string
-                'FilterPolicy': json.dumps({
-                    "target_email": [email]
-                })
-            }
+                "FilterPolicy": json.dumps({"target_email": [email]})
+            },
         )
     except Exception as e:
         print(f"SNS Subscription failed for {email}: {str(e)}")
@@ -93,7 +91,9 @@ def put_new_user(
         # Subscribe each contact email provided during signup
         if emergency_contacts:
             for contact in emergency_contacts:
-                contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                contact_map = (
+                    contact.get("M", contact) if isinstance(contact, dict) else contact
+                )
                 email_addr = contact_map.get("email")
                 if isinstance(email_addr, dict):
                     email_addr = email_addr.get("S")
@@ -124,13 +124,13 @@ def authenticate_user(username, password):
 
         user_login = items[0]
         user_id = user_login["user_id"]
-        
+
         # Handle both the new Binary format and legacy string format
         stored_password = user_login["password"]
-        if hasattr(stored_password, 'value'):
+        if hasattr(stored_password, "value"):
             stored_hash = stored_password.value  # Extract bytes from Binary
         elif isinstance(stored_password, str):
-            stored_hash = stored_password.encode("utf-8") # Fallback for old records
+            stored_hash = stored_password.encode("utf-8")  # Fallback for old records
         else:
             stored_hash = stored_password
 
@@ -198,11 +198,15 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
 
                 # Trigger SNS subscriptions for the new contact list
                 for contact in emergency_contacts:
-                    contact_map = contact.get("M", contact) if isinstance(contact, dict) else contact
+                    contact_map = (
+                        contact.get("M", contact)
+                        if isinstance(contact, dict)
+                        else contact
+                    )
                     email_addr = contact_map.get("email")
                     if isinstance(email_addr, dict):
                         email_addr = email_addr.get("S")
-                    
+
                     if email_addr:
                         subscribe_email_to_alerts(email_addr)
 

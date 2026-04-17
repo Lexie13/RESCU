@@ -243,27 +243,30 @@ def edit_profile():
     profile = session.get("profile", {})
 
     if request.method == "POST":
-        # Handle both JSON (from JS fetch) and form submissions
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form
+        updated_profile = {
+            "first_name": request.form.get(
+                "first_name", profile.get("first_name", "")
+            ).strip(),
+            "last_name": request.form.get(
+                "last_name", profile.get("last_name", "")
+            ).strip(),
+            "email": request.form.get("email", profile.get("email", "")).strip(),
+            "role": request.form.get("role", profile.get("role", "owner")),
+        }
 
-        updated_profile = {}
-
-        if "first_name" in data:
-            updated_profile["first_name"] = data.get("first_name", "").strip()
-        if "last_name" in data:
-            updated_profile["last_name"] = data.get("last_name", "").strip()
-        if "email" in data:
-            updated_profile["email"] = data.get("email", "").strip()
-        if "role" in data:
-            updated_profile["role"] = data.get("role")
-
-        new_password = data.get("new_password", "").strip() if data.get("new_password") else ""
+        new_password = request.form.get("new_password", "").strip()
+        confirm = request.form.get("confirm_password", "").strip()
 
         if new_password:
-            updated_profile["password"] = new_password
+            if new_password == confirm:
+                updated_profile["password"] = new_password
+            else:
+                return render_template(
+                    "edit_profile.html",
+                    username=session["username"],
+                    user=profile,
+                    error="Passwords do not match.",
+                )
 
         try:
             requests.patch(
@@ -278,30 +281,31 @@ def edit_profile():
         except Exception as e:
             print(f"Failed to update profile: {e}")
 
-        # Return 200 for JSON requests instead of redirecting
-        if request.is_json:
-            return {"status": "ok"}, 200
-
         return redirect(url_for("edit_profile"))
 
     return render_template(
         "edit_profile.html", username=session["username"], user=profile
     )
 
-    @app.route("/delete-account", methods=["POST"])
-    def delete_account():
-        if "username" not in session:
-            return {}, 401
-        try:
-            requests.delete(
-                f"{API_GATEWAY_URL}/user",
-                json={"user_id": session.get("user_id")}
-            )
-        except Exception as e:
-            print(f"Failed to delete account: {e}")
-            return {"error": str(e)}, 500
-        session.clear()
-        return {}, 200
+
+# =========================
+# DELETE ACCOUNT
+# =========================
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    if "username" not in session:
+        return {}, 401
+    try:
+        requests.delete(
+            f"{API_GATEWAY_URL}/user",
+            json={"user_id": session.get("user_id")}
+        )
+    except Exception as e:
+        print(f"Failed to delete account: {e}")
+        return {"error": str(e)}, 500
+    session.clear()
+    return {}, 200
+
 
 # =========================
 # DEVICE SETTINGS

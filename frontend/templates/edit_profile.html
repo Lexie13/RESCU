@@ -259,13 +259,17 @@
         <div class="error-msg show" style="margin-top: 16px;">{{ error }}</div>
         {% endif %}
 
+        <hr>
+
+        <div style="text-align: center; padding-top: 4px;">
+            <button class="btn-delete-account" onclick="document.getElementById('delete-modal').style.display='flex'">
+                Delete Account
+            </button>
+        </div>
+
     </div>
 
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
-
-    <button class="btn-delete-account" onclick="document.getElementById('delete-modal').style.display='flex'">
-        Delete Account
-    </button>
 </div>
 
 <!-- Delete Confirmation Modal -->
@@ -284,13 +288,13 @@
 
 <script>
 function deleteAccount() {
-    fetch("{{ url_for('delete_account') }}", {
+    fetch("/delete-account", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     })
     .then(res => {
         if (!res.ok) throw new Error('Delete failed');
-        window.location.href = "{{ url_for('index') }}";
+        window.location.href = "/";
     })
     .catch(() => alert('Could not delete account. Please try again.'));
 }

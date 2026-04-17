@@ -30,13 +30,13 @@ def subscribe_email_to_alerts(email):
     """
     try:
         # 1. List existing subscriptions for the topic
-        paginator = sns_client.get_paginator('list_subscriptions_by_topic')
+        paginator = sns_client.get_paginator("list_subscriptions_by_topic")
         iterator = paginator.paginate(TopicArn=SNS_TOPIC_ARN)
-        
+
         for page in iterator:
-            for sub in page.get('Subscriptions', []):
+            for sub in page.get("Subscriptions", []):
                 # Check if the email is already registered (confirmed or pending)
-                if sub['Endpoint'] == email:
+                if sub["Endpoint"] == email:
                     print(f"Email {email} is already subscribed. Skipping.")
                     return
 
@@ -45,9 +45,7 @@ def subscribe_email_to_alerts(email):
             TopicArn=SNS_TOPIC_ARN,
             Protocol="email",
             Endpoint=email,
-            Attributes={
-                "FilterPolicy": json.dumps({"target_email": [email]})
-            },
+            Attributes={"FilterPolicy": json.dumps({"target_email": [email]})},
         )
         print(f"New subscription request sent to {email}.")
     except Exception as e:

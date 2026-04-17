@@ -102,7 +102,7 @@ def signup_emergency():
 
         except Exception as e:
             return render_template(
-                "signup_emergency.html", error= f"Request failed: {str(e)}"
+                "signup_emergency.html", error=f"Request failed: {str(e)}"
             )
 
     return render_template("signup_emergency.html")
@@ -244,8 +244,12 @@ def edit_profile():
 
     if request.method == "POST":
         updated_profile = {
-            "first_name": request.form.get("first_name", profile.get("first_name", "")).strip(),
-            "last_name": request.form.get("last_name", profile.get("last_name", "")).strip(),
+            "first_name": request.form.get(
+                "first_name", profile.get("first_name", "")
+            ).strip(),
+            "last_name": request.form.get(
+                "last_name", profile.get("last_name", "")
+            ).strip(),
             "email": request.form.get("email", profile.get("email", "")).strip(),
             "role": request.form.get("role", profile.get("role", "owner")),
         }
@@ -296,18 +300,18 @@ def device_status():
     if "device_settings" not in session["profile"]:
         session["profile"]["device_settings"] = {
             "device_name": "RESCU-Wearable",
-            "fall_delay": 5
+            "fall_delay": 5,
         }
 
     if request.method == "POST":
         data = request.json
-        
+
         # Update session with new settings
         if "device_name" in data:
             session["profile"]["device_settings"]["device_name"] = data["device_name"]
         if "fall_delay" in data:
             session["profile"]["device_settings"]["fall_delay"] = data["fall_delay"]
-        
+
         session.modified = True
 
         # Sync settings to the backend API Gateway
@@ -328,9 +332,9 @@ def device_status():
     # GET Request: Pass data to the template
     settings = session["profile"].get("device_settings", {})
     return render_template(
-        "device_settings.html", 
+        "device_settings.html",
         device_name=settings.get("device_name", "RESCU-Wearable"),
-        fall_delay=settings.get("fall_delay", 5)
+        fall_delay=settings.get("fall_delay", 5),
     )
 
 
@@ -353,4 +357,3 @@ def fall_history():
 
 if __name__ == "__main__":
     app.run(debug=True)
-

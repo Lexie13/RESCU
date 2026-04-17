@@ -12,9 +12,10 @@
             font-family: 'Roboto', sans-serif;
             background: linear-gradient(to bottom, #1E90FF, #800080);
             color: white;
+            overflow: hidden;
         }
 
-        /* 2. Make the iframe transparent so the shell's gradient shows through during loads */
+        /* 2. Make the iframe transparent so the shell's gradient shows through */
         iframe {
             border: none;
             width: 100%;
@@ -23,15 +24,76 @@
             background: transparent;
             transition: opacity 0.2s ease-in-out;
         }
+
+        /* 3. Emergency Cancel Modal */
+        #emergency-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .modal-content {
+            background: #fff;
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            color: #ff4757;
+            margin-top: 0;
+        }
+
+        .cancel-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .countdown-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
     <iframe src="{{ url_for('home') }}" name="content-frame" id="main-frame"></iframe>
 
+    <div id="emergency-modal">
+        <div class="modal-content">
+            <h2>FALL DETECTED!</h2>
+            <p>An emergency alert will be sent to your contacts in:</p>
+            <div id="countdown" class="countdown-text">5</div>
+            <button class="cancel-btn" onclick="cancelAlert()">I'M OKAY (CANCEL)</button>
+        </div>
+    </div>
+
 <script>
     const SESSION_USER_ID = "{{ user_id }}";
     // --- PERSISTENT STATE ---
     let bleServer = null;
+    let fallAlertTimeout = null;
+    let countdownInterval = null;
+
     let isDeviceConnected = false
     let bleDevice = null;
     let fallChar = null;
@@ -42,22 +104,40 @@
     const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
     const frame = document.getElementById('main-frame');
+    const modal = document.getElementById('emergency-modal');
+    const countdownDisplay = document.getElementById('countdown');
 
-    // --- 1. LOCATION WARM-UP ---
-    async function warmUpLocation() {
-        try {
-            const result = await navigator.permissions.query({ name: 'geolocation' });
-            if (result.state === 'prompt' || result.state === 'granted') {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => console.log("Location services primed."),
-                    (err) => console.warn("Location permission denied."),
-                    { enableHighAccuracy: true }
-                );
-            }
-        } catch (error) { console.error("Permissions API error:", error); }
+    // --- 1. EMERGENCY LOOP TRIGGER WITH DELAY ---
+    function startEmergencyGracePeriod(bleData) {
+        let timeLeft = 5;
+        modal.style.display = 'flex';
+        countdownDisplay.innerText = timeLeft;
+
+        // Visual Countdown
+        countdownInterval = setInterval(() => {
+            timeLeft -= 1;
+            countdownDisplay.innerText = timeLeft;
+            if (timeLeft <= 0) clearInterval(countdownInterval);
+        }, 1000);
+
+        // 5-Second Delay before sending to backend
+        fallAlertTimeout = setTimeout(() => {
+            modal.style.display = 'none';
+            sendFallToBackend(bleData);
+        }, 5000);
     }
 
-    // --- 2. BACKEND & POPUP LOGIC ---
+    function cancelAlert() {
+        if (fallAlertTimeout) {
+            clearTimeout(fallAlertTimeout);
+            clearInterval(countdownInterval);
+            fallAlertTimeout = null;
+            modal.style.display = 'none';
+            console.log("Emergency alert canceled by user.");
+        }
+    }
+
+    // --- 2. BACKEND API CALL ---
     function sendFallToBackend(bleData) {
     navigator.geolocation.getCurrentPosition((pos) => {
         const lat = pos.coords.latitude.toFixed(4);

@@ -5,3 +5,5 @@ Adafruit MPL3115A2
 SparkFun MAX1704x Fuel Gauge Arduino...
 Arduino_LSM6DS3
 TensorFlowLite_ESP32
+
+local file: esp32_fall_detector_waist.h

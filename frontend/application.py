@@ -288,6 +288,21 @@ def edit_profile():
         "edit_profile.html", username=session["username"], user=profile
     )
 
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    if "username" not in session:
+        return {}, 401
+    try:
+        requests.delete(
+            f"{API_GATEWAY_URL}/user",
+            json={"user_id": session.get("user_id")}
+        )
+    except Exception as e:
+        print(f"Failed to delete account: {e}")
+        return {"error": str(e)}, 500
+    session.clear()
+    return {}, 200
+
 # =========================
 # DEVICE SETTINGS
 # =========================

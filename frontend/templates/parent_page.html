@@ -82,12 +82,12 @@
 <body>
     <iframe src="{{ url_for('home') }}" name="content-frame" id="main-frame"></iframe>
 
-    <!-- FALL MODAL: shown on FALL signal, 5s countdown + cancel -->
+    <!-- FALL MODAL: shown on FALL signal, countdown + cancel -->
     <div id="fall-modal" class="rescu-modal">
         <div class="modal-content">
             <h2 class="fall-title">FALL DETECTED!</h2>
             <p>An emergency alert will be sent to your contacts in:</p>
-            <div id="fall-countdown" class="countdown-text">5</div>
+            <div id="fall-countdown" class="countdown-text">{{ fall_delay }}</div>
             <button class="modal-btn btn-cancel" onclick="cancelFallAlert()">I'M OKAY (CANCEL)</button>
         </div>
     </div>
@@ -104,6 +104,7 @@
 
 <script>
     const SESSION_USER_ID = "{{ user_id }}";
+    const FALL_DELAY      = {{ fall_delay }};  // pulled from device settings
 
     // --- PERSISTENT STATE ---
     let bleServer         = null;
@@ -157,8 +158,9 @@
 
     // --- 3. FALL MODAL ---
     function startFallGracePeriod(bleData) {
+        closeFallModal();   // clear any previous interval/timeout before starting fresh
         pendingFallData = bleData;
-        let timeLeft = 5;
+        let timeLeft = FALL_DELAY;
 
         document.getElementById('fall-countdown').innerText = timeLeft;
         fallModal.style.display = 'flex';
@@ -177,7 +179,7 @@
                 ()    => fireBackendCalls(bleData, null),
                 { enableHighAccuracy: true }
             );
-        }, 5000);
+        }, FALL_DELAY * 1000);
     }
 
     function closeFallModal() {

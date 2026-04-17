@@ -15,7 +15,7 @@
             overflow: hidden;
         }
 
-        /* 2. Make the iframe transparent so the shell's gradient shows through */
+        /* 2. Make the iframe transparent so the shell's gradient shows through during loads */
         iframe {
             border: none;
             width: 100%;
@@ -25,9 +25,9 @@
             transition: opacity 0.2s ease-in-out;
         }
 
-        /* 3. Emergency Cancel Modal */
-        #emergency-modal {
-            display: none; /* Hidden by default */
+        /* 3. Shared modal backdrop */
+        .rescu-modal {
+            display: none;
             position: fixed;
             z-index: 999;
             left: 0;
@@ -51,12 +51,13 @@
         }
 
         .modal-content h2 {
-            color: #ff4757;
             margin-top: 0;
         }
 
-        .cancel-btn {
-            background: #ff4757;
+        .modal-content h2.fall-title      { color: #ff4757; }
+        .modal-content h2.emergency-title { color: #c0392b; }
+
+        .modal-btn {
             color: white;
             border: none;
             padding: 15px 30px;
@@ -68,6 +69,9 @@
             width: 100%;
         }
 
+        .btn-cancel { background: #ff4757; }
+        .btn-ok     { background: #c0392b; }
+
         .countdown-text {
             font-size: 1.5rem;
             font-weight: bold;
@@ -78,193 +82,220 @@
 <body>
     <iframe src="{{ url_for('home') }}" name="content-frame" id="main-frame"></iframe>
 
-    <div id="emergency-modal">
+    <!-- FALL MODAL: shown on FALL signal, 5s countdown + cancel -->
+    <div id="fall-modal" class="rescu-modal">
         <div class="modal-content">
-            <h2>FALL DETECTED!</h2>
+            <h2 class="fall-title">FALL DETECTED!</h2>
             <p>An emergency alert will be sent to your contacts in:</p>
-            <div id="countdown" class="countdown-text">5</div>
-            <button class="cancel-btn" onclick="cancelAlert()">I'M OKAY (CANCEL)</button>
+            <div id="fall-countdown" class="countdown-text">5</div>
+            <button class="modal-btn btn-cancel" onclick="cancelFallAlert()">I'M OKAY (CANCEL)</button>
+        </div>
+    </div>
+
+    <!-- EMERGENCY MODAL: shown on EMERGENCY signal, OK to dismiss -->
+    <div id="emergency-modal" class="rescu-modal" style="z-index:1000; background-color:rgba(0,0,0,0.85);">
+        <div class="modal-content">
+            <h2 class="emergency-title">🆘 EMERGENCY ALERT SENT</h2>
+            <p>No response was detected. Your emergency contacts have been notified.</p>
+            <p id="emergency-location" style="font-size:0.9rem; color:#666;"></p>
+            <button class="modal-btn btn-ok" onclick="dismissEmergencyModal()">OK</button>
         </div>
     </div>
 
 <script>
     const SESSION_USER_ID = "{{ user_id }}";
+
     // --- PERSISTENT STATE ---
-    let bleServer = null;
-    let fallAlertTimeout = null;
+    let bleServer         = null;
+    let isDeviceConnected = false;
+    let bleDevice         = null;
+    let fallChar          = null;
+
+    let fallAlertTimeout  = null;
     let countdownInterval = null;
+    let pendingFallData   = null;
 
-    let isDeviceConnected = false
-    let bleDevice = null;
-    let fallChar = null;
-
-    const FALL_SERVICE_UUID = '18a0ceb2-c728-41f4-af01-f06e15051107';
-    const FALL_ALERT_UUID   = '44c94768-6610-4039-83eb-07919b82d665';
+    const FALL_SERVICE_UUID    = '18a0ceb2-c728-41f4-af01-f06e15051107';
+    const FALL_ALERT_UUID      = '44c94768-6610-4039-83eb-07919b82d665';
     const BATTERY_SERVICE_UUID = 'fe39738b-d108-4571-9ece-8ee6bd1633c9';
     const BATTERY_LEVEL_UUID   = '3dd2fe2e-ce13-442e-8165-3dd67b99ce5d';
 
-    const frame = document.getElementById('main-frame');
-    const modal = document.getElementById('emergency-modal');
-    const countdownDisplay = document.getElementById('countdown');
+    const frame          = document.getElementById('main-frame');
+    const fallModal      = document.getElementById('fall-modal');
+    const emergencyModal = document.getElementById('emergency-modal');
 
-    // --- 1. EMERGENCY LOOP TRIGGER WITH DELAY ---
-    function startEmergencyGracePeriod(bleData) {
+    // --- 1. LOCATION WARM-UP ---
+    async function warmUpLocation() {
+        try {
+            const result = await navigator.permissions.query({ name: 'geolocation' });
+            if (result.state === 'prompt' || result.state === 'granted') {
+                navigator.geolocation.getCurrentPosition(
+                    () => console.log("Location services primed."),
+                    () => console.warn("Location permission denied."),
+                    { enableHighAccuracy: true }
+                );
+            }
+        } catch (error) { console.error("Permissions API error:", error); }
+    }
+
+    // --- 2. BACKEND CALL ---
+    function fireBackendCalls(bleData, location) {
+        const locStr = location
+            ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`
+            : "Location Unavailable";
+        fetch('/process-fall', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mcu: bleData, location })
+        });
+        fetch('/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: SESSION_USER_ID, location: locStr })
+        });
+    }
+
+    // --- 3. FALL MODAL ---
+    function startFallGracePeriod(bleData) {
+        pendingFallData = bleData;
         let timeLeft = 5;
-        modal.style.display = 'flex';
-        countdownDisplay.innerText = timeLeft;
 
-        // Visual Countdown
+        document.getElementById('fall-countdown').innerText = timeLeft;
+        fallModal.style.display = 'flex';
+
         countdownInterval = setInterval(() => {
             timeLeft -= 1;
-            countdownDisplay.innerText = timeLeft;
+            document.getElementById('fall-countdown').innerText = timeLeft;
             if (timeLeft <= 0) clearInterval(countdownInterval);
         }, 1000);
 
-        // 5-Second Delay before sending to backend
+        // Grace period expired with no cancel — fire backend
         fallAlertTimeout = setTimeout(() => {
-            modal.style.display = 'none';
-            sendFallToBackend(bleData);
+            closeFallModal();
+            navigator.geolocation.getCurrentPosition(
+                (pos) => fireBackendCalls(bleData, { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+                ()    => fireBackendCalls(bleData, null),
+                { enableHighAccuracy: true }
+            );
         }, 5000);
     }
 
-    function cancelAlert() {
-        if (fallAlertTimeout) {
-            clearTimeout(fallAlertTimeout);
-            clearInterval(countdownInterval);
-            fallAlertTimeout = null;
-            modal.style.display = 'none';
-            console.log("Emergency alert canceled by user.");
-        }
+    function closeFallModal() {
+        clearTimeout(fallAlertTimeout);
+        clearInterval(countdownInterval);
+        fallAlertTimeout = null;
+        fallModal.style.display = 'none';
     }
 
-    // --- 2. BACKEND API CALL ---
-    function sendFallToBackend(bleData) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude.toFixed(4);
-        const lon = pos.coords.longitude.toFixed(4);
+    function cancelFallAlert() {
+        closeFallModal();
+        pendingFallData = null;
+        if (fallChar) {
+            fallChar.writeValue(new TextEncoder().encode("cancel"))
+                .catch(err => console.error("Cancel write failed:", err));
+        }
+        console.log("Fall alert cancelled by user.");
+    }
 
-        const cancelled = !confirm(
-            `🚨 RESCU ALERT: Fall Detected!\n\n` +
-            `Device: ${bleData.device_id}\n` +
-            `Location: ${lat}, ${lon}\n` +
-            `Time: ${bleData.timestamp}\n\n` +
-            `Press OK to alert emergency contacts.\n` +
-            `Press Cancel if you are okay.`
-        );
+    // --- 4. EMERGENCY MODAL ---
+    function handleEmergency(bleData) {
+        // Close fall modal if still open — emergency takes over
+        closeFallModal();
 
-        if (cancelled) {
-            // User pressed Cancel — write to ESP32 to cancel alert
-            if (fallChar) {
-                const encoder = new TextEncoder();
-                fallChar.writeValue(encoder.encode("cancel"))
-                    .catch(err => console.error("Cancel write failed:", err));
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const location = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+            document.getElementById('emergency-location').innerText =
+                `Location: ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`;
+            emergencyModal.style.display = 'flex';
+            fireBackendCalls(bleData, location);
+        }, () => {
+            document.getElementById('emergency-location').innerText = 'Location: Unavailable';
+            emergencyModal.style.display = 'flex';
+            fireBackendCalls(bleData, null);
+        }, { enableHighAccuracy: true });
+    }
+
+    function dismissEmergencyModal() {
+        emergencyModal.style.display = 'none';
+    }
+
+    // --- 5. BLUETOOTH LISTENER ---
+    window.addEventListener("message", async (event) => {
+
+        // 1. CONNECT LOGIC
+        if (event.data === "CONNECT_BLE") {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [FALL_SERVICE_UUID] }],
+                    optionalServices: [BATTERY_SERVICE_UUID]
+                });
+
+                bleDevice = device;
+                bleServer = await device.gatt.connect();
+                isDeviceConnected = true;
+
+                device.addEventListener('gattserverdisconnected', () => {
+                    console.log("Device disconnected.");
+                    bleServer = null;
+                    isDeviceConnected = false;
+                    frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+                });
+
+                // Battery service
+                const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
+                const battChar    = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
+
+                const initialVal  = await battChar.readValue();
+                const initialData = JSON.parse(new TextDecoder().decode(initialVal));
+                frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: initialData.battery_pct + "%"}, "*");
+
+                await battChar.startNotifications();
+                battChar.addEventListener('characteristicvaluechanged', (e) => {
+                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
+                    frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
+                });
+
+                frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
+
+                // Fall service
+                const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
+                fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
+                await fallChar.startNotifications();
+                fallChar.addEventListener('characteristicvaluechanged', (e) => {
+                    const data = JSON.parse(new TextDecoder().decode(e.target.value));
+                    if (data.type === "FALL") {
+                        startFallGracePeriod(data);
+                    } else if (data.type === "EMERGENCY") {
+                        handleEmergency(data);
+                    }
+                });
+
+            } catch (err) {
+                console.error("BLE Connection Error:", err);
+                frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
+                isDeviceConnected = false;
             }
-            return;  // don't send to backend
         }
 
-        // User pressed OK — send to backend
-        const payload = { mcu: bleData, location: { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy } };
-        fetch('/process-fall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        fetch('/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: SESSION_USER_ID, location: `${lat}, ${lon}` }) });
-
-    }, (err) => {
-        const cancelled = !confirm(`🚨 FALL DETECTED!\n\nLocation unavailable.\n\nPress OK to alert contacts.\nPress Cancel if you are okay.`);
-        if (cancelled) {
-            if (fallChar) {
-                const encoder = new TextEncoder();
-                fallChar.writeValue(encoder.encode("cancel")).catch(err => console.error("Cancel write failed:", err));
+        // 2. DISCONNECT LOGIC
+        if (event.data === "DISCONNECT_BLE") {
+            if (bleServer && bleServer.connected) {
+                bleServer.disconnect();
             }
-            return;
-        }
-        fetch('/process-fall', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mcu: bleData, location: null }) });
-        fetch('/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: SESSION_USER_ID, location: "Location Unavailable" }) });
-    }, { enableHighAccuracy: true });
-}
-
-// --- 3. BLUETOOTH GESTURE LISTENER ---
-window.addEventListener("message", async (event) => {
-
-// 1. CONNECT LOGIC
-if (event.data === "CONNECT_BLE") {
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [FALL_SERVICE_UUID] }],
-            optionalServices: [BATTERY_SERVICE_UUID]
-        });
-        
-        bleDevice = device;
-
-        bleServer = await device.gatt.connect();
-        isDeviceConnected = true;
-
-        // Fires when ESP32 drops connection (deep sleep, power off, out of range)
-        device.addEventListener('gattserverdisconnected', () => {
-            console.log("Device disconnected.");
             bleServer = null;
             isDeviceConnected = false;
             frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
-        });
+        }
 
-        // --- Discover Battery Service & Start Notifications ---
-        const battService = await bleServer.getPrimaryService(BATTERY_SERVICE_UUID);
-        const battChar = await battService.getCharacteristic(BATTERY_LEVEL_UUID);
-
-        // Immediate Read to force update UI as fast as possible
-        const initialVal = await battChar.readValue();
-        const initialData = JSON.parse(new TextDecoder().decode(initialVal));
-        frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: initialData.battery_pct + "%"}, "*");
-
-        // Start listening for future changes
-        await battChar.startNotifications();
-        battChar.addEventListener('characteristicvaluechanged', (e) => {
-            const data = JSON.parse(new TextDecoder().decode(e.target.value));
-            frame.contentWindow.postMessage({type: "BATTERY_UPDATE", value: data.battery_pct + "%"}, "*");
-        });
-
-        // Notify home frame that connection is successful
-        frame.contentWindow.postMessage({type: "STATUS", value: "Connected"}, "*");
-
-        // Subscribe to fall alert notifications
-        const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
-        fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
-        await fallChar.startNotifications();
-        fallChar.addEventListener('characteristicvaluechanged', (e) => {
-            const data = JSON.parse(new TextDecoder().decode(e.target.value));
-            if (data.type === "FALL") {
-                sendFallToBackend(data);
+        // 3. STATUS CHECK
+        if (event.data === "GET_CONNECTION_STATUS") {
+            if (isDeviceConnected) {
+                event.source.postMessage({type: "STATUS", value: "Connected"}, "*");
+            } else {
+                event.source.postMessage({type: "DISCONNECTED"}, "*");
             }
-        });
-
-    } catch (err) {
-        console.error("BLE Connection Error:", err);
-        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
-        isDeviceConnected = false;
-    }
-}
-
-    // 2. DISCONNECT LOGIC
-    if (event.data === "DISCONNECT_BLE") {
-        if (bleServer && bleServer.connected) {
-            bleServer.disconnect();
         }
-        bleServer = null;
-        isDeviceConnected = false;
-
-
-        frame.contentWindow.postMessage({type: "DISCONNECTED"}, "*");
-    }
-
-
-    // 3. STATUS CHECK (The Fix)
-    if (event.data === "GET_CONNECTION_STATUS") {
-        if (isDeviceConnected) {
-            // Send back to the source of the message (the newly loaded iframe)
-            event.source.postMessage({type: "STATUS", value: "Connected"}, "*");
-        } else {
-            event.source.postMessage({type: "DISCONNECTED"}, "*");
-        }
-    }
-});
+    });
 </script>
 </body>
 </html>

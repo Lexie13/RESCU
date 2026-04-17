@@ -162,7 +162,11 @@ def home():
         return redirect(url_for("index"))
 
     if request.headers.get("Sec-Fetch-Dest") != "iframe":
-        return render_template("parent_page.html", user_id=session.get("user_id"))
+        settings = session.get("profile", {}).get("device_settings", {})
+        return render_template("parent_page.html",
+            user_id=session.get("user_id"),
+            fall_delay=settings.get("fall_delay", 5)
+        )
 
     user_data = session.get("profile", {})
     return render_template(

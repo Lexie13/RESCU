@@ -189,13 +189,13 @@ def delete_user(user_id):
         return {"success": False, "error": str(e)}
 
 
-def update_user(user_id, emergency_contacts=None, profile_updates=None):
+def update_user(user_id, emergency_contacts=None, profile_updates=None, device_settings=None):
     """
     Updates the user profile in 'users' and optionally the password in 'logins'.
     """
     try:
         # 1. Update Profile Information (users table)
-        if emergency_contacts is not None or profile_updates is not None:
+        if emergency_contacts is not None or profile_updates is not None or device_settings is not None:
             update_expr_parts = []
             expr_attr_values = {}
             expr_attr_names = {}
@@ -228,6 +228,11 @@ def update_user(user_id, emergency_contacts=None, profile_updates=None):
                         expr_attr_names[f"#{db_field}"] = db_field
                         update_expr_parts.append(f"#{db_field} = :{db_field}")
                         expr_attr_values[f":{db_field}"] = profile_updates[field]
+
+            if device_settings is not None:
+                expr_attr_names["#ds"] = "device_settings"
+                update_expr_parts.append("#ds = :ds")
+                expr_attr_values[":ds"] = device_settings
 
             if update_expr_parts:
                 update_kwargs = {

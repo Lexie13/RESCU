@@ -2,7 +2,7 @@
 #include "JoyIT_LSM6DS3TR-C.h"
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>
 #include "TensorFlowLite_ESP32.h"
-#include "esp32_fall_detector_waist_small.h"
+#include "esp32_fall_detector_waist.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -379,7 +379,7 @@ void setup() {
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
-  tflite_model = tflite::GetModel(esp32_fall_detector_waist_small_tflite);
+  tflite_model = tflite::GetModel(esp32_fall_detector_waist_tflite);
   if (tflite_model->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!"); while (1);
   }

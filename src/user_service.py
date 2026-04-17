@@ -153,9 +153,7 @@ def authenticate_user(username, password):
                     "user_id": user_id,
                     "username": user_login["username"],
                     "role": user_login.get("role", "primary_user"),
-                    "exp": (
-                        datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-                    ),
+                    "exp": (datetime.datetime.utcnow() + datetime.timedelta(hours=24)),
                 },
                 SECRET_KEY,
                 algorithm="HS256",
@@ -191,21 +189,13 @@ def delete_user(user_id):
         return {"success": False, "error": str(e)}
 
 
-def update_user(
-    user_id,
-    emergency_contacts=None,
-    profile_updates=None,
-    device_settings=None,
-):
+def update_user(user_id, emergency_contacts=None, profile_updates=None):
     """
     Updates the user profile in 'users' and optionally the password in 'logins'.
     """
     try:
         # 1. Update Profile Information (users table)
-        if any(
-            x is not None
-            for x in [emergency_contacts, profile_updates, device_settings]
-        ):
+        if emergency_contacts is not None or profile_updates is not None:
             update_expr_parts = []
             expr_attr_values = {}
             expr_attr_names = {}
@@ -238,11 +228,6 @@ def update_user(
                         expr_attr_names[f"#{db_field}"] = db_field
                         update_expr_parts.append(f"#{db_field} = :{db_field}")
                         expr_attr_values[f":{db_field}"] = profile_updates[field]
-
-            if device_settings is not None:
-                expr_attr_names["#ds"] = "device_settings"
-                update_expr_parts.append("#ds = :ds")
-                expr_attr_values[":ds"] = device_settings
 
             if update_expr_parts:
                 update_kwargs = {
@@ -327,12 +312,7 @@ def authenticate_oauth_user(email, first_name=None, last_name=None):
             algorithm="HS256",
         )
 
-        return {
-            "success": True,
-            "token": token,
-            "user_id": user_id,
-            "profile": profile,
-        }
+        return {"success": True, "token": token, "user_id": user_id, "profile": profile}
 
     except Exception as e:
         print(f"OAuth error: {str(e)}")

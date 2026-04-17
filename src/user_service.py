@@ -202,7 +202,10 @@ def update_user(
     """
     try:
         # 1. Update Profile Information (users table)
-        if emergency_contacts is not None or profile_updates is not None or device_settings is not None:
+        if any(
+            x is not None
+            for x in [emergency_contacts, profile_updates, device_settings]
+        ):
             update_expr_parts = []
             expr_attr_values = {}
             expr_attr_names = {}

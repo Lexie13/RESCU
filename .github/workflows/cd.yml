@@ -9,6 +9,7 @@ on:
       - frontend
       - test-alerts
       - haejune
+      - alert-loop
 
 permissions:
   id-token: write

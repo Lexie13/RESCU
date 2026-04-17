@@ -147,6 +147,24 @@
 
         .btn-save-pw:hover { background: #104E8B; }
         .btn-save-pw.saved { background: #104E8B; cursor: default; }
+
+        .btn-delete-account {
+            margin-top: 20px;
+            background: transparent;
+            color: #ff4d4d;
+            border: 2px solid #ff4d4d;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Roboto', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .btn-delete-account:hover {
+            background: #ff4d4d;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -244,10 +262,39 @@
     </div>
 
     <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
+
+    <button class="btn-delete-account" onclick="document.getElementById('delete-modal').style.display='flex'">
+        Delete Account
+    </button>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" style="display:none; position:fixed; z-index:999; inset:0; background:rgba(0,0,0,0.7); justify-content:center; align-items:center;">
+    <div style="background:white; border-radius:16px; padding:30px; width:85%; max-width:380px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+        <h3 style="color:#cc0000; margin-top:0; font-family:'Montserrat',sans-serif;">Delete Account?</h3>
+        <p style="color:#555; font-size:14px; margin-bottom:24px;">This will permanently delete your account and all associated data. This action cannot be undone.</p>
+        <button onclick="deleteAccount()" style="background:#cc0000; color:white; border:none; padding:13px; width:100%; border-radius:8px; font-size:15px; font-weight:700; font-family:'Roboto',sans-serif; cursor:pointer; margin-bottom:10px;">
+            Yes, Delete My Account
+        </button>
+        <button onclick="document.getElementById('delete-modal').style.display='none'" style="background:#f0f0f0; color:#555; border:none; padding:13px; width:100%; border-radius:8px; font-size:15px; font-weight:700; font-family:'Roboto',sans-serif; cursor:pointer;">
+            Cancel
+        </button>
+    </div>
 </div>
 
 <script>
-function saveField(btn, field) {
+function deleteAccount() {
+    fetch("{{ url_for('delete_account') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Delete failed');
+        window.location.href = "{{ url_for('index') }}";
+    })
+    .catch(() => alert('Could not delete account. Please try again.'));
+}
+
     const payload = {};
 
     if (field === 'role') {

@@ -104,7 +104,7 @@
 
 <script>
     const SESSION_USER_ID = "{{ user_id }}";
-    const FALL_DELAY      = {{ fall_delay }};  // pulled from device settings
+    let FALL_DELAY = {{ fall_delay }};  // pulled from device settings
 
     // --- PERSISTENT STATE ---
     let bleServer         = null;
@@ -296,6 +296,12 @@
             } else {
                 event.source.postMessage({type: "DISCONNECTED"}, "*");
             }
+        }
+        
+        // 4. DELAY CONFIG
+        if (event.data?.type === "UPDATE_FALL_DELAY") {
+            FALL_DELAY = event.data.value;
+            console.log("Fall delay updated to:", FALL_DELAY);
         }
     });
 </script>

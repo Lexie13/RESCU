@@ -167,23 +167,23 @@
         // Simulating the same Save feedback as your Account Info page
         const originalText = btn.textContent;
         
-        fetch("/device-status", { // Assuming your route handles POST for settings
+        fetch("/device-status", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
         .then(res => {
+            if (!res.ok) throw new Error(`Server error: ${res.status}`);
             btn.textContent = '✓ Saved!';
             btn.classList.add('saved');
             btn.disabled = true;
-            
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.classList.remove('saved');
                 btn.disabled = false;
             }, 1000);
         })
-        .catch(() => alert('Failed to update setting.'));
+        .catch(err => alert('Failed to update setting: ' + err.message));
     }
 </script>
 

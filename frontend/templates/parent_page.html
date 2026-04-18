@@ -193,7 +193,7 @@
         closeFallModal();
         pendingFallData = null;
         if (fallChar) {
-            fallChar.writeValue(new TextEncoder().encode("cancel"))
+            fallChar.writeValue(new TextEncoder().encode(JSON.stringify({ type: "CANCEL" })))
                 .catch(err => console.error("Cancel write failed:", err));
         }
         console.log("Fall alert cancelled by user.");
@@ -302,6 +302,13 @@
         if (event.data?.type === "UPDATE_FALL_DELAY") {
             FALL_DELAY = event.data.value;
             console.log("Fall delay updated to:", FALL_DELAY);
+
+            // Push new delay to firmware over BLE
+            if (fallChar) {
+                const payload = JSON.stringify({ type: "SET_DELAY", value: FALL_DELAY });
+                fallChar.writeValue(new TextEncoder().encode(payload))
+                    .catch(err => console.error("SET_DELAY write failed:", err));
+            }
         }
     });
 </script>

@@ -86,6 +86,8 @@ volatile bool  ble_cancel_request  = false;
 volatile float battery_soc_shared  = 0.0f;
 volatile bool  device_connected    = false;
 
+volatile uint32_t ble_alert_timeout_ms = ALERT_TIMEOUT_MS;  // default 10000ms, updated by app
+
 SemaphoreHandle_t state_mutex;
 
 // ── Fall detection globals (Core 1 only) ─────────────────────────────────
@@ -456,7 +458,7 @@ void loop() {
   checkPowerButton(now_ms);
 
   // ── 1. Sample IMU at 238Hz (only when BLE connected) ─────────────────
-  if (device_connected && (now_us - last_sample_us >= SAMPLE_US)) {
+  if (device_connected && (now_us - last_sample_us >= SAMPLE_US) && state != EMERGENCY) {
     last_sample_us = now_us;
 
     imu.readAll(acceleration, gyroscope, temperature);
@@ -572,7 +574,7 @@ void loop() {
           state       = IDLE;
           xSemaphoreGive(state_mutex);
         }
-        if (elapsed > ALERT_TIMEOUT_MS) {
+        if (elapsed > ble_alert_timeout_ms) {
           Serial.println("!!! EMERGENCY — no user response !!!");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           state            = EMERGENCY;

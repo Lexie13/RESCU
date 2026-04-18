@@ -127,8 +127,8 @@
             <label class="field-label">Alert Delay Period</label>
             <p style="font-size: 13px; color: #777; margin: 4px 0;">Time to wait before notifying contacts after a fall.</p>
             <div class="slider-container">
-                <span class="delay-display" id="delay-val">5</span><span style="font-weight: 700; color: #1E90FF;">s</span>
-                <input type="range" id="fall_delay" min="2" max="10" value="5" class="range-slider" oninput="updateDelay(this.value)">
+                <span class="delay-display" id="delay-val">{{ fall_delay }}</span><span style="font-weight: 700; color: #1E90FF;">s</span>
+                <input type="range" id="fall_delay" min="2" max="10" value="{{ fall_delay }}" class="range-slider" oninput="updateDelay(this.value)">
                 <button class="btn-primary" onclick="saveSetting(this, 'fall_delay')">Update Delay Period</button>
             </div>
         </div>
@@ -167,23 +167,31 @@
         // Simulating the same Save feedback as your Account Info page
         const originalText = btn.textContent;
         
-        fetch("/device-status", { // Assuming your route handles POST for settings
+        fetch("/device-status", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
         .then(res => {
+            if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+            if (settingKey === 'fall_delay') {
+                window.parent.postMessage({
+                    type: "UPDATE_FALL_DELAY",
+                    value: parseInt(payload.fall_delay)
+                }, "*");
+            }
+
             btn.textContent = '✓ Saved!';
             btn.classList.add('saved');
             btn.disabled = true;
-            
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.classList.remove('saved');
                 btn.disabled = false;
             }, 1000);
         })
-        .catch(() => alert('Failed to update setting.'));
+        .catch(err => alert('Failed to update setting: ' + err.message));
     }
 </script>
 

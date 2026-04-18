@@ -114,8 +114,11 @@ def lambda_handler(event, context):
 
             emergency_contacts = body.get("emergency_contacts")
             profile_updates = body.get("profile_updates")
+            device_settings = body.get("device_settings")
 
-            result = update_user(user_id, emergency_contacts, profile_updates)
+            result = update_user(
+                user_id, emergency_contacts, profile_updates, device_settings
+            )
             return {
                 "statusCode": 200 if result.get("success") else 500,
                 "body": json.dumps(result, cls=DecimalEncoder),

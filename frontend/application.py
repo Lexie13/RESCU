@@ -315,7 +315,9 @@ def device_status():
         if "device_name" in data:
             session["profile"]["device_settings"]["device_name"] = data["device_name"]
         if "fall_delay" in data:
-            session["profile"]["device_settings"]["fall_delay"] = int(data["fall_delay"])
+            session["profile"]["device_settings"]["fall_delay"] = int(
+                data["fall_delay"]
+            )
 
         session.modified = True
 

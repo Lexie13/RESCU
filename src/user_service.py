@@ -189,7 +189,9 @@ def delete_user(user_id):
         return {"success": False, "error": str(e)}
 
 
-def update_user(user_id, emergency_contacts=None, profile_updates=None, device_settings=None):
+def update_user(
+    user_id, emergency_contacts=None, profile_updates=None, device_settings=None
+):
     """
     Updates the user profile in 'users' and optionally the password in 'logins'.
     """

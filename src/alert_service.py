@@ -175,7 +175,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
 
 def acknowledge_alert(alert_id, contact_email):
     """
-    Updates the alert status to ACKNOWLEDGED.
+    Updates the alert status to ACKNOWLEDGED from PENDING.
     """
     try:
         table_alerts.update_item(

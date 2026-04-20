@@ -79,7 +79,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
             try:
                 root = ET.fromstring(cap_xml)
                 # Standard CAP Namespace
-                ns = {'cap': 'urn:oasis:names:tc:emergency:cap:1.2'}
+                ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
 
                 event_node = root.find(".//cap:event", ns)
                 severity_node = root.find(".//cap:severity", ns)

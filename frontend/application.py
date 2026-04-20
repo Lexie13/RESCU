@@ -162,7 +162,12 @@ def home():
         return redirect(url_for("index"))
 
     if request.headers.get("Sec-Fetch-Dest") != "iframe":
-        return render_template("parent_page.html", user_id=session.get("user_id"))
+        settings = session.get("profile", {}).get("device_settings", {})
+        return render_template(
+            "parent_page.html",
+            user_id=session.get("user_id"),
+            fall_delay=settings.get("fall_delay", 5),
+        )
 
     user_data = session.get("profile", {})
     return render_template(
@@ -289,25 +294,6 @@ def edit_profile():
 
 
 # =========================
-# DELETE ACCOUNT
-# =========================
-@app.route("/delete-account", methods=["POST"])
-def delete_account():
-    if "username" not in session:
-        return {}, 401
-    try:
-        requests.delete(
-            f"{API_GATEWAY_URL}/user",
-            json={"user_id": session.get("user_id")}
-        )
-    except Exception as e:
-        print(f"Failed to delete account: {e}")
-        return {"error": str(e)}, 500
-    session.clear()
-    return {}, 200
-
-
-# =========================
 # DEVICE SETTINGS
 # =========================
 @app.route("/device-status", methods=["GET", "POST"])
@@ -329,7 +315,9 @@ def device_status():
         if "device_name" in data:
             session["profile"]["device_settings"]["device_name"] = data["device_name"]
         if "fall_delay" in data:
-            session["profile"]["device_settings"]["fall_delay"] = data["fall_delay"]
+            session["profile"]["device_settings"]["fall_delay"] = int(
+                data["fall_delay"]
+            )
 
         session.modified = True
 
@@ -359,11 +347,35 @@ def device_status():
 
 @app.route("/process-fall", methods=["POST"])
 def process_fall():
+    if "user_id" not in session:
+        return {"status": "error", "message": "User not logged in"}, 401
+
     data = request.json
+    # Generate the CAP XML string using the utility function
     cap_xml = format_text.get_cap_xml_for_current_alert(data["mcu"], data["location"])
-    print("Generated CAP XML:")
-    print(cap_xml)
-    return {"status": "processed"}
+
+    # Prepare the payload for the backend /alert endpoint
+    payload = {
+        "user_id": session["user_id"],
+        "location": data.get("location", "Unknown Location"),
+        "cap_xml": cap_xml,  # Send the raw XML string to be stored and parsed by the backend
+    }
+
+    try:
+        # Forward to the API Gateway /alert endpoint (same as test_alert)
+        response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
+        if response.status_code == 200:
+            return {
+                "status": "processed",
+                "message": "Emergency alert triggered successfully",
+            }, 200
+        else:
+            return {
+                "status": "error",
+                "message": f"Backend failed: {response.text}",
+            }, response.status_code
+    except Exception as e:
+        return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
 # =========================

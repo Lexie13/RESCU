@@ -4,6 +4,7 @@ import time
 import uuid
 import datetime
 from botocore.exceptions import ClientError
+import xml.etree.ElementTree as ET
 
 region = os.environ.get("AWS_REGION", "us-east-1")
 dynamodb = boto3.resource("dynamodb", region_name=region)
@@ -19,7 +20,7 @@ API_GATEWAY_URL = os.environ.get(
 )
 
 
-def trigger_emergency_email_loop(user_id, location_data="No Location"):
+def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml=""):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
         user_profile = response.get("Item")
@@ -67,9 +68,28 @@ def trigger_emergency_email_loop(user_id, location_data="No Location"):
                 "alert_id": alert_id,
                 "user_id": user_id,
                 "status": "PENDING",
+                "cap_xml": cap_xml,  # Store for future Fall History page
                 "created_at": datetime.datetime.utcnow().isoformat(),
             }
         )
+
+        event_type = "Fall Detected"
+        severity = "URGENT"
+        if cap_xml:
+            try:
+                root = ET.fromstring(cap_xml)
+                # Standard CAP Namespace
+                ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
+
+                event_node = root.find(".//cap:event", ns)
+                severity_node = root.find(".//cap:severity", ns)
+
+                if event_node is not None:
+                    event_type = event_node.text
+                if severity_node is not None:
+                    severity = severity_node.text
+            except Exception as parse_err:
+                print(f"XML Parsing failed, falling back to defaults: {parse_err}")
 
         notified_contacts = []
         is_acknowledged = False
@@ -79,23 +99,21 @@ def trigger_emergency_email_loop(user_id, location_data="No Location"):
             contact_email = contact["email"]
             contact_name = contact["name"] or "Emergency Contact"
 
-            # The link the contact will click
             ack_link = (
                 f"{API_GATEWAY_URL}/alert/acknowledge?"
                 f"alert_id={alert_id}&email={contact_email}"
             )
 
-            subject = "URGENT: RESCU Fall Detected - Action Required"
+            # Updated subject and message using info extracted from CAP XML
+            subject = f"{severity}: RESCU {event_type} - Action Required"
             message = (
                 f"Hello {contact_name},\n\n"
-                f"This is an automated emergency alert from RESCU. "
-                f"A fall has been detected for the user you are "
-                f"monitoring.\\n\\n"
+                f"This is an automated emergency alert from RESCU.\n"
+                f"Event: {event_type} (Severity: {severity})\n\n"
                 f"Last Known Location: {location_data}\n\n"
-                f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE "
-                f"HANDLING THIS:\n{ack_link}\n\n"
-                f"If you do not acknowledge this within 60 seconds, we will "
-                f"notify the next contact."
+                f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE HANDLING THIS:\n"
+                f"{ack_link}\n\n"
+                f"If you do not acknowledge this within 60 seconds, we will notify the next contact."
             )
 
             try:

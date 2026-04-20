@@ -30,9 +30,9 @@ SFE_MAX1704X lipo;
 #define LED_STATUS  15   // bluetooth
 #define LED_POWER   33   // power
 #define LED_BAT     32   // low battery
-#define BTN_DEFAULT 38
-#define BTN_POWER   27
-#define BTN_ALERT   28   // 39 is original, 34 for testing with prototype 1
+#define BTN_DEFAULT 38   // sleep / wake
+#define BTN_POWER   34   // 34 - original
+#define BTN_ALERT   39   // 39 - original
 
 // ── Fall detection config ─────────────────────────────────────────────────
 #define WINDOW_SIZE         476
@@ -80,15 +80,15 @@ enum SystemState { IDLE, WAITING_FOR_CNN, RUNNING_CNN, FALL_DETECTED, EMERGENCY 
 volatile SystemState state = IDLE;
 
 // ── Shared variables between cores ───────────────────────────────────────
-// These are read by BLE task (Core 0) and written by fall detection (Core 1)
-// or vice versa. Protected by state_mutex where needed.
-volatile bool  fall_signal         = false;   // Core 1 sets, BLE task reads
-volatile bool  emergency_signal    = false;   // Core 1 sets, BLE task reads
-volatile bool  ble_cancel_request  = false;   // BLE task sets, Core 1 reads
-volatile float battery_soc_shared  = 0.0f;   // Core 1 sets, BLE task reads
-volatile bool  device_connected    = false;   // BLE callbacks set, both read
+volatile bool  fall_signal         = false;
+volatile bool  emergency_signal    = false;
+volatile bool  ble_cancel_request  = false;
+volatile float battery_soc_shared  = 0.0f;
+volatile bool  device_connected    = false;
 
-SemaphoreHandle_t state_mutex;   // protects state + signal flags
+volatile uint32_t ble_alert_timeout_ms = ALERT_TIMEOUT_MS;  // default 10000ms, updated by app
+
+SemaphoreHandle_t state_mutex;
 
 // ── Fall detection globals (Core 1 only) ─────────────────────────────────
 float circ_buf[WINDOW_SIZE][CHANNELS];
@@ -152,6 +152,17 @@ void sendFallAlert() {
   }
 }
 
+void sendEmergencyAlert() {
+  if (device_connected) {
+    String payload = "{\"type\":\"EMERGENCY\",\"device_id\":\"" DEVICE_ID "\","
+                     "\"fall_count\":" + String(fallCount) +
+                     ",\"timestamp\":\"" + getReadableTime() + "\"}";
+    pFallAlert->setValue(payload.c_str());
+    pFallAlert->notify();
+    Serial.println("[BLE] Emergency alert sent: " + payload);
+  }
+}
+
 void sendBatteryLevel() {
   if (device_connected) {
     String payload = "{\"type\":\"BATTERY\",\"device_id\":\"" DEVICE_ID "\","
@@ -166,13 +177,14 @@ void sendBatteryLevel() {
 class ServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* pServer) {
     device_connected = true;
+    digitalWrite(LED_STATUS, HIGH);
     Serial.println("[BLE] Device connected.");
-    // Send battery immediately on connect
     sendBatteryLevel();
   }
   void onDisconnect(BLEServer* pServer) {
     device_connected  = false;
     needsAdvRestart   = true;
+    digitalWrite(LED_STATUS, LOW);
     Serial.println("[BLE] Device disconnected.");
   }
 };
@@ -180,7 +192,6 @@ class ServerCallbacks : public BLEServerCallbacks {
 // ── Fall alert WRITE callback — app cancels alert by writing any value ────
 class FallAlertCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pChar) {
-    // App wrote to the characteristic — treat as cancel request
     xSemaphoreTake(state_mutex, portMAX_DELAY);
     ble_cancel_request = true;
     xSemaphoreGive(state_mutex);
@@ -189,15 +200,13 @@ class FallAlertCallbacks : public BLECharacteristicCallbacks {
 };
 
 // ── BLE task — runs on Core 0 ─────────────────────────────────────────────
-// Handles advertising restart and periodic battery notifications.
-// Fall alert is sent reactively when fall_signal is set by Core 1.
 void ble_task(void* pvParams) {
-  unsigned long last_fall_signal = false;
+  bool last_fall_signal      = false;
+  bool last_emergency_signal = false;
 
   for (;;) {
     unsigned long now_ms = millis();
 
-    // Restart advertising after disconnect (non-blocking, no delay())
     if (needsAdvRestart && (now_ms - last_ble_bat_ms >= 500)) {
       BLEDevice::startAdvertising();
       needsAdvRestart  = false;
@@ -205,10 +214,10 @@ void ble_task(void* pvParams) {
       Serial.println("[BLE] Advertising restarted.");
     }
 
-    // Send fall alert when fall_signal goes HIGH (edge detect)
-    bool current_fall;
+    bool current_fall, current_emergency;
     xSemaphoreTake(state_mutex, portMAX_DELAY);
-    current_fall = fall_signal;
+    current_fall      = fall_signal;
+    current_emergency = emergency_signal;
     xSemaphoreGive(state_mutex);
 
     if (current_fall && !last_fall_signal) {
@@ -216,13 +225,16 @@ void ble_task(void* pvParams) {
     }
     last_fall_signal = current_fall;
 
-    // Send battery every 10 seconds
+    if (current_emergency && !last_emergency_signal) {
+      sendEmergencyAlert();
+    }
+    last_emergency_signal = current_emergency;
+
     if (device_connected && (now_ms - last_ble_bat_ms >= BLE_BATTERY_MS)) {
       last_ble_bat_ms = now_ms;
       sendBatteryLevel();
     }
 
-    // Yield to BLE stack — 20ms is enough, doesn't affect Core 1 at all
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
@@ -268,7 +280,7 @@ void enterDeepSleep() {
 
 void checkPowerButton(unsigned long now_ms) {
   if (millis() < 2000) return;
-  bool currentPowerBtn = digitalRead(BTN_DEFAULT);
+  bool currentPowerBtn = digitalRead(BTN_POWER);   // fixed: was BTN_DEFAULT
   if (currentPowerBtn == LOW) {
     if (lastPowerBtnState == HIGH) {
       power_btn_held_since = now_ms;
@@ -289,7 +301,7 @@ void checkPowerButton(unsigned long now_ms) {
 float readBattery() {
   battery_soc = lipo.getSOC();
   battery_low = (battery_soc < 20.0);
-  battery_soc_shared = (float)battery_soc;   // update shared value for BLE task
+  battery_soc_shared = (float)battery_soc;
 
   Serial.print("[Battery] "); Serial.print(battery_soc, 1); Serial.print(" %");
   if (battery_low) Serial.print("  *** LOW ***");
@@ -401,7 +413,6 @@ void setup() {
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new ServerCallbacks());
 
-  // Fall service — NOTIFY to push alerts, WRITE so app can cancel
   BLEService* pFallService = pServer->createService(FALL_SERVICE_UUID);
   pFallAlert = pFallService->createCharacteristic(
       FALL_ALERT_UUID,
@@ -410,7 +421,6 @@ void setup() {
   pFallAlert->setCallbacks(new FallAlertCallbacks());
   pFallService->start();
 
-  // Battery service
   BLEService* pBattService = pServer->createService(BATTERY_SERVICE_UUID);
   pBatteryLevel = pBattService->createCharacteristic(
       BATTERY_LEVEL_UUID,
@@ -426,7 +436,6 @@ void setup() {
   BLEDevice::startAdvertising();
   Serial.println("[BLE] Advertising started.");
 
-  // ── Mutex + BLE task on Core 0 ────────────────────────────────────────
   state_mutex = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(
       ble_task,    // function
@@ -449,7 +458,7 @@ void loop() {
   checkPowerButton(now_ms);
 
   // ── 1. Sample IMU at 238Hz (only when BLE connected) ─────────────────
-  if (device_connected && (now_us - last_sample_us >= SAMPLE_US)) {
+  if (device_connected && (now_us - last_sample_us >= SAMPLE_US) && state != EMERGENCY) {
     last_sample_us = now_us;
 
     imu.readAll(acceleration, gyroscope, temperature);
@@ -498,7 +507,7 @@ void loop() {
         Serial.println(">>> FALL CONFIRMED");
         xSemaphoreTake(state_mutex, portMAX_DELAY);
         state       = FALL_DETECTED;
-        fall_signal = true;   // BLE task picks this up and sends alert
+        fall_signal = true;
         xSemaphoreGive(state_mutex);
         fall_start_ms = millis();
       } else {
@@ -523,66 +532,63 @@ void loop() {
     bool buttonJustPressed = (millis() > 5000) &&
                              (currentBtnState == LOW && lastBtnState == HIGH);
 
-    // Check if BLE app requested cancel
     bool app_cancel = false;
     xSemaphoreTake(state_mutex, portMAX_DELAY);
     if (ble_cancel_request) {
-      app_cancel        = true;
+      app_cancel         = true;
       ble_cancel_request = false;
     }
     xSemaphoreGive(state_mutex);
 
     switch (state) {
       case IDLE:
-        digitalWrite(LED_STATUS, LOW);
         if (buttonJustPressed) {
           Serial.println("Manual SOS triggered.");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
-          state           = EMERGENCY;
-          emergency_signal = true;
-          fall_signal      = true;   // also send BLE alert for manual SOS
+          
+          state = FALL_DETECTED; 
+          
+          fall_signal = true;
+          emergency_signal = false; // Ensure emergency is not triggered yet
           xSemaphoreGive(state_mutex);
+          
+          fall_start_ms = millis(); // Initialize timer for the grace period
         }
         break;
 
       case WAITING_FOR_CNN:
-        digitalWrite(LED_STATUS, (now_ms / 500) % 2);
         break;
 
       case RUNNING_CNN:
-        digitalWrite(LED_STATUS, (now_ms / 150) % 2);
         break;
 
       case FALL_DETECTED: {
-        digitalWrite(LED_STATUS, HIGH);
         unsigned long elapsed   = now_ms - fall_start_ms;
-        unsigned long remaining = (elapsed < ALERT_TIMEOUT_MS)
-                                  ? (ALERT_TIMEOUT_MS - elapsed) / 1000 : 0;
-        if (now_ms - last_msg_ms >= 1000) {
-          last_msg_ms = now_ms;
-          Serial.print("Fall alert — "); Serial.print(remaining); Serial.println("s to cancel");
-        }
+        // Use the dynamic ble_alert_timeout_ms for the countdown calculation
+        unsigned long remaining = (elapsed < ble_alert_timeout_ms)
+                                  ? (ble_alert_timeout_ms - elapsed) / 1000 : 0;
 
-        // Cancel from button OR from app
         if (buttonJustPressed || app_cancel) {
           Serial.println(app_cancel ? "App cancelled alert." : "User cancelled alert.");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           fall_signal = false;
+          ble_cancel_request = false; // Reset the flag
           state       = IDLE;
           xSemaphoreGive(state_mutex);
         }
-        if (elapsed > ALERT_TIMEOUT_MS) {
+
+        if (elapsed > ble_alert_timeout_ms) {
           Serial.println("!!! EMERGENCY — no user response !!!");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           state            = EMERGENCY;
           emergency_signal = true;
           xSemaphoreGive(state_mutex);
+          sendEmergencyAlert(); // Notify frontend immediately of state change
         }
         break;
       }
 
       case EMERGENCY:
-        digitalWrite(LED_STATUS, (now_ms / 100) % 2);
         if (buttonJustPressed || app_cancel) {
           Serial.println(app_cancel ? "App reset emergency." : "Emergency cancelled by user.");
           xSemaphoreTake(state_mutex, portMAX_DELAY);

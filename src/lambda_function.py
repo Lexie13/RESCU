@@ -90,6 +90,7 @@ def lambda_handler(event, context):
         elif method == "POST" and "alert" in path.lower():
             user_id = body.get("user_id")
             location = body.get("location", "Location Unavailable")
+            cap_xml = body.get("cap_xml", "")
 
             if not user_id:
                 return {
@@ -97,7 +98,7 @@ def lambda_handler(event, context):
                     "body": json.dumps("user_id required to trigger alert"),
                 }
 
-            result = trigger_emergency_email_loop(user_id, location)
+            result = trigger_emergency_email_loop(user_id, location, cap_xml)
             return {
                 "statusCode": 200 if result["success"] else 500,
                 "body": json.dumps(result, cls=DecimalEncoder),
@@ -114,8 +115,11 @@ def lambda_handler(event, context):
 
             emergency_contacts = body.get("emergency_contacts")
             profile_updates = body.get("profile_updates")
+            device_settings = body.get("device_settings")
 
-            result = update_user(user_id, emergency_contacts, profile_updates)
+            result = update_user(
+                user_id, emergency_contacts, profile_updates, device_settings
+            )
             return {
                 "statusCode": 200 if result.get("success") else 500,
                 "body": json.dumps(result, cls=DecimalEncoder),

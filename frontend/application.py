@@ -378,6 +378,28 @@ def process_fall():
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    if "user_id" not in session:
+        return {"status": "error", "message": "Unauthorized"}, 401
+
+    try:
+        # Assuming your API Gateway handles DELETE for the user
+        response = requests.delete(
+            f"{API_GATEWAY_URL}/user",
+            json={"user_id": session.get("user_id")}
+        )
+        
+        if response.status_code in (200, 204):
+            session.clear()
+            return {"status": "success"}, 200
+        else:
+            return {"status": "error", "message": "Backend deletion failed"}, 500
+    except Exception as e:
+        print(f"Delete failed: {e}")
+        return {"status": "error", "message": str(e)}, 500
+        
+
 # =========================
 # EMERGENCY CONTACTS (STUB)
 # =========================

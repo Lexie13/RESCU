@@ -105,7 +105,6 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                 break
             print(f"[Alert] Starting round {round_num} of {max_rounds}...")
             for contact in parsed_contacts:
-            for contact in parsed_contacts:
                 if is_acknowledged:
                     break
 

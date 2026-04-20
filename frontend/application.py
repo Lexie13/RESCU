@@ -18,6 +18,8 @@ API_GATEWAY_URL = os.environ.get(
 def index():
     return render_template("login.html")
 
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+table_alerts = dynamodb.Table('YourTableNameHere')
 
 # =========================
 # SIGNUP ROUTES

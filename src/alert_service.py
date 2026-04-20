@@ -96,7 +96,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
 
         # 2. ITERATE AND SEND
         for contact in parsed_contacts:
-            contact_email = contact["email"]
+            contact_email = contact["email"].lower()
             contact_name = contact["name"] or "Emergency Contact"
 
             ack_link = (

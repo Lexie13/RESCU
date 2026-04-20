@@ -378,12 +378,64 @@ def process_fall():
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    if "user_id" not in session:
+        return {"status": "error", "message": "Unauthorized"}, 401
+
+    try:
+        # Assuming your API Gateway handles DELETE for the user
+        response = requests.delete(
+            f"{API_GATEWAY_URL}/user",
+            json={"user_id": session.get("user_id")}
+        )
+        
+        if response.status_code in (200, 204):
+            session.clear()
+            return {"status": "success"}, 200
+        else:
+            return {"status": "error", "message": "Backend deletion failed"}, 500
+    except Exception as e:
+        print(f"Delete failed: {e}")
+        return {"status": "error", "message": str(e)}, 500
+        
+
 # =========================
-# REMAINING STUBS
+# EMERGENCY CONTACTS (STUB)
 # =========================
 @app.route("/fall-history")
 def fall_history():
-    return "Fall History Page"
+    if "username" not in session:
+        return redirect(url_for("index"))
+
+    # This is mock data so the page renders without needing DynamoDB
+    alerts = [
+        {
+            "alert_id": "STUB-001",
+            "status": "RESOLVED",
+            "event_type": "Manual Test",
+            "severity": "Low",
+            "location": "Purdue University - ECE Building",
+            "created_at": "2026-04-20 10:00:00",
+            "acknowledged_by": "System",
+            "acknowledged_at": "2026-04-20 10:05:00",
+            "cap_xml": ""
+        },
+        {
+            "alert_id": "STUB-002",
+            "status": "PENDING",
+            "event_type": "Fall Detected",
+            "severity": "Urgent",
+            "location": "West Lafayette, IN",
+            "created_at": "2026-04-20 12:30:00",
+            "acknowledged_by": "",
+            "acknowledged_at": "",
+            "cap_xml": ""
+        }
+    ]
+
+    # This will now successfully render your 'fall_history.html' template
+    return render_template("fall_history.html", alerts=alerts)
 
 
 if __name__ == "__main__":

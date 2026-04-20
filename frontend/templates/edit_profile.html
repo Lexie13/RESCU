@@ -287,101 +287,87 @@
 </div>
 
 <script>
-function deleteAccount() {
-    fetch("/delete-account", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Delete failed');
-        window.location.href = "/";
-    })
-    .catch(() => alert('Could not delete account. Please try again.'));
+// Toggle Password Section
+function togglePassword(btn) {
+    const fields = document.getElementById('password-fields');
+    const isOpen = fields.classList.toggle('open');
+    fields.style.display = isOpen ? 'block' : 'none';
+    btn.textContent = isOpen ? 'Cancel' : 'Change Password';
 }
 
-    const payload = {};
-
+// Save Individual Fields
+function saveField(btn, field) {
+    const formData = new FormData();
+    
     if (field === 'role') {
         const selected = document.querySelector('input[name="role"]:checked');
         if (!selected) return;
-        payload.role = selected.value;
-    } else if (field === 'first_name') {
-        const val = document.getElementById('first_name').value.trim();
-        if (!val) { alert('Please enter a first name.'); return; }
-        payload.first_name = val;
-    } else if (field === 'last_name') {
-        const val = document.getElementById('last_name').value.trim();
-        if (!val) { alert('Please enter a last name.'); return; }
-        payload.last_name = val;
-    } else if (field === 'email') {
-        const email = document.getElementById('email').value.trim();
-        if (!email) { alert('Please enter an email address.'); return; }
-        payload.email = email;
+        formData.append('role', selected.value);
+    } else {
+        const input = document.getElementById(field);
+        if (!input) return;
+        formData.append(field, input.value.trim());
     }
 
+    // Notice we DON'T use JSON.stringify here so request.form works in Python
     fetch("{{ url_for('edit_profile') }}", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData 
     })
     .then(res => {
         if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
+        const origText = btn.textContent;
         btn.textContent = '✓ Saved!';
         btn.classList.add('saved');
-        btn.disabled = true;
         setTimeout(() => {
-            btn.textContent = orig;
+            btn.textContent = origText;
             btn.classList.remove('saved');
-            btn.disabled = false;
-        }, 800);
+        }, 1500);
     })
-    .catch(() => alert('Could not save. Please try again.'));
+    .catch(err => alert('Error saving: ' + err));
 }
 
-function togglePassword(btn) {
-    const fields = document.getElementById('password-fields');
-    const open = fields.classList.toggle('open');
-    btn.textContent = open ? 'Cancel' : 'Change Password';
-    if (!open) {
-        document.getElementById('new_password').value = '';
-        document.getElementById('confirm_password').value = '';
-        document.getElementById('pw-error').classList.remove('show');
-    }
-}
-
+// Save Password
 function savePassword(btn) {
-    const np  = document.getElementById('new_password').value;
-    const cp  = document.getElementById('confirm_password').value;
-    const err = document.getElementById('pw-error');
+    const np = document.getElementById('new_password').value;
+    const cp = document.getElementById('confirm_password').value;
 
     if (!np || np !== cp) {
-        err.classList.add('show');
-        setTimeout(() => err.classList.remove('show'), 3000);
+        document.getElementById('pw-error').style.display = 'block';
         return;
     }
 
-    err.classList.remove('show');
+    const formData = new FormData();
+    formData.append('new_password', np);
+    formData.append('confirm_password', cp);
 
     fetch("{{ url_for('edit_profile') }}", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_password: np })
+        body: formData
     })
     .then(res => {
-        if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.classList.add('saved');
-        btn.disabled = true;
+        if (!res.ok) throw new Error('Failed');
+        btn.textContent = '✓ Updated!';
         setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('saved');
-            btn.disabled = false;
-            togglePassword(document.querySelector('.btn-secondary'));
-        }, 800);
+            location.reload(); // Reload to clear fields and hide section
+        }, 1000);
     })
-    .catch(() => alert('Could not save password. Please try again.'));
+    .catch(() => alert('Error updating password.'));
+}
+
+// Delete Account
+function deleteAccount() {
+    fetch("{{ url_for('delete_account') }}", {
+        method: 'POST'
+    })
+    .then(res => {
+        if (res.ok) {
+            window.top.location.href = "{{ url_for('index') }}";
+        } else {
+            alert('Delete failed on server.');
+        }
+    })
+    .catch(() => alert('Network error.'));
 }
 </script>
 </body>

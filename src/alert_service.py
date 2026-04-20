@@ -90,7 +90,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                 if severity_node is not None:
                     severity = severity_node.text
             except Exception as parse_err:
-                print(f"XML Parsing failed, falling back to defaults: {parse_err}")
+                print(f"XML Parsing failed,  falling back to defaults: {parse_err}")
 
         notified_contacts = []
         is_acknowledged = False

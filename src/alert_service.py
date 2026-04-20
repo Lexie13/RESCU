@@ -68,7 +68,7 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                 "alert_id": alert_id,
                 "user_id": user_id,
                 "status": "PENDING",
-                "cap_xml": cap_xml,  # Store for future Fall History page
+                "location": location_data,
                 "created_at": datetime.datetime.utcnow().isoformat(),
             }
         )

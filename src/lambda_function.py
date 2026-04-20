@@ -198,16 +198,14 @@ def lambda_handler(event, context):
             if not user_id:
                 return {
                     "statusCode": 400,
-                    "body": json.dumps("user_id is required for history")
+                    "body": json.dumps("user_id is required for history"),
                 }
 
             from alert_service import get_user_alerts
+
             alerts = get_user_alerts(user_id)
-            
-            return {
-                "statusCode": 200,
-                "body": json.dumps(alerts, cls=DecimalEncoder)
-            }
+
+            return {"statusCode": 200, "body": json.dumps(alerts, cls=DecimalEncoder)}
 
         # DEFAULT ROUTE: Handle unmatched paths/methods
         return {

@@ -204,10 +204,9 @@ def get_user_alerts(user_id):
     try:
         # Use query with IndexName for efficiency
         response = table_alerts.query(
-            IndexName='user_id-index', 
-            KeyConditionExpression=Key('user_id').eq(user_id)
+            IndexName="user_id-index", KeyConditionExpression=Key("user_id").eq(user_id)
         )
-        return response.get('Items', [])
+        return response.get("Items", [])
     except ClientError as e:
         print(f"Error fetching alerts: {e}")
         # Fallback: if you don't have a GSI yet, you can use scan (not recommended for production)

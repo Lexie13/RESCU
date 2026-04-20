@@ -91,7 +91,11 @@ def lambda_handler(event, context):
             }
 
         # ROUTE: Trigger Fall Alert (POST /alert)
-        elif method == "POST" and "alert" in path.lower() and "cancel" not in path.lower():
+        elif (
+            method == "POST"
+            and "alert" in path.lower()
+            and "cancel" not in path.lower()
+        ):
             user_id = body.get("user_id")
             location = body.get("location", "Location Unavailable")
             cap_xml = body.get("cap_xml", "")
@@ -112,6 +116,7 @@ def lambda_handler(event, context):
         # ROUTE: Cancel Alert (POST /alert/cancel)
         elif method == "POST" and "alert/cancel" in path.lower():
             from alert_service import cancel_alert
+
             alert_id = body.get("alert_id")
             if not alert_id:
                 return {"statusCode": 400, "body": json.dumps("alert_id required")}

@@ -21,7 +21,7 @@ API_GATEWAY_URL = os.environ.get(
 )
 
 
-def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml=""):
+def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="", fall_time="Unknown"):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
         user_profile = response.get("Item")
@@ -74,6 +74,9 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
             }
         )
 
+        # Return alert_id early so caller can pass it back to the frontend
+        # (the loop continues but the ID is now known)
+
         event_type = "Fall Detected"
         severity = "URGENT"
         if cap_xml:
@@ -94,82 +97,107 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
 
         notified_contacts = []
         is_acknowledged = False
+        max_rounds = 3
 
-        # 2. ITERATE AND SEND
-        for contact in parsed_contacts:
-            contact_email = contact["email"].lower()
-            contact_name = contact["name"] or "Emergency Contact"
-
-            ack_link = (
-                f"{API_GATEWAY_URL}/alert/acknowledge?"
-                f"alert_id={alert_id}&email={contact_email}"
-            )
-
-            # Updated subject and message using info extracted from CAP XML
-            subject = f"{severity}: RESCU {event_type} - Action Required"
-            message = (
-                f"Hello {contact_name},\n\n"
-                f"This is an automated emergency alert from RESCU.\n"
-                f"Event: {event_type} (Severity: {severity})\n\n"
-                f"Last Known Location: {location_data}\n\n"
-                f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE HANDLING THIS:\n"
-                f"{ack_link}\n\n"
-                f"If you do not acknowledge this within 60 seconds, we will notify the next contact."
-            )
-
-            try:
-                sns_client.publish(
-                    TopicArn=SNS_TOPIC_ARN,
-                    Subject=subject,
-                    Message=message,
-                    MessageAttributes={
-                        "target_email": {
-                            "DataType": "String",
-                            "StringValue": contact_email,
-                        }
-                    },
-                )
-                notified_contacts.append(contact_email)
-                print(
-                    f"Alert sent to {contact_email}. " f"Waiting for acknowledgment..."
-                )
-
-                # 3. POLL THE DATABASE FOR ACKNOWLEDGMENT
-                wait_time_seconds = 15
-                poll_interval = 5
-                iterations = wait_time_seconds // poll_interval
-
-                for _ in range(iterations):
-                    time.sleep(poll_interval)
-
-                    # Check if status changed
-                    alert_record = table_alerts.get_item(
-                        Key={"alert_id": alert_id}
-                    ).get("Item")
-                    if alert_record and alert_record.get("status") == "ACKNOWLEDGED":
-                        is_acknowledged = True
-                        break  # Break the polling loop
-
+        # 2. ITERATE UP TO 3 ROUNDS THROUGH ALL CONTACTS
+        for round_num in range(1, max_rounds + 1):
+            if is_acknowledged:
+                break
+            print(f"[Alert] Starting round {round_num} of {max_rounds}...")
+            for contact in parsed_contacts:
                 if is_acknowledged:
-                    print(f"Alert {alert_id} acknowledged! Stopping loop.")
-                    break  # Break the contact list loop entirely
+                    break
 
-            except ClientError as sns_err:
-                print(f"Failed to send SNS to {contact_email}: {sns_err}")
-                continue
+                contact_email = contact["email"].lower()
+                contact_name = contact["name"] or "Emergency Contact"
+
+                ack_link = (
+                    f"{API_GATEWAY_URL}/alert/acknowledge?"
+                    f"alert_id={alert_id}&email={contact_email}"
+                )
+
+                subject = f"{severity}: RESCU {event_type} - Action Required"
+                message = (
+                    f"Hello {contact_name},\n\n"
+                    f"This is an automated emergency alert from RESCU.\n"
+                    f"Event: {event_type} (Severity: {severity})\n"
+                    f"Time of Fall: {fall_time}\n\n"
+                    f"Last Known Location: {location_data}\n\n"
+                    f"PLEASE CLICK THE LINK BELOW TO ACKNOWLEDGE YOU ARE HANDLING THIS:\n"
+                    f"{ack_link}\n\n"
+                    f"If you do not acknowledge this within 60 seconds, we will notify the next contact."
+                )
+
+                try:
+                    sns_client.publish(
+                        TopicArn=SNS_TOPIC_ARN,
+                        Subject=subject,
+                        Message=message,
+                        MessageAttributes={
+                            "target_email": {
+                                "DataType": "String",
+                                "StringValue": contact_email,
+                            }
+                        },
+                    )
+                    notified_contacts.append(contact_email)
+                    print(f"[Round {round_num}] Alert sent to {contact_email}. Waiting for acknowledgment...")
+
+                    wait_time_seconds = 15
+                    poll_interval = 5
+                    iterations = wait_time_seconds // poll_interval
+
+                    for _ in range(iterations):
+                        time.sleep(poll_interval)
+
+                        alert_record = table_alerts.get_item(
+                            Key={"alert_id": alert_id}
+                        ).get("Item")
+                        if alert_record and alert_record.get("status") in ("ACKNOWLEDGED", "CANCELLED"):
+                            is_acknowledged = True
+                            break
+
+                    if is_acknowledged:
+                        print(f"Alert {alert_id} acknowledged/cancelled. Stopping loop.")
+                        break
+
+                except ClientError as sns_err:
+                    print(f"Failed to send SNS to {contact_email}: {sns_err}")
+                    continue
 
         if is_acknowledged:
             return {
                 "success": True,
                 "message": "Alert acknowledged",
+                "alert_id": alert_id,
                 "notified": notified_contacts,
             }
         else:
             return {
                 "success": False,
+                "alert_id": alert_id,
                 "error": ("Loop finished, but no contact acknowledged the alert."),
             }
 
+    except ClientError as e:
+        return {"success": False, "error": str(e)}
+
+
+def cancel_alert(alert_id):
+    """
+    Marks an alert as CANCELLED so the polling loop stops immediately.
+    """
+    try:
+        table_alerts.update_item(
+            Key={"alert_id": alert_id},
+            UpdateExpression="SET #st = :st, cancelled_at = :time",
+            ExpressionAttributeNames={"#st": "status"},
+            ExpressionAttributeValues={
+                ":st": "CANCELLED",
+                ":time": datetime.datetime.utcnow().isoformat(),
+            },
+        )
+        return {"success": True}
     except ClientError as e:
         return {"success": False, "error": str(e)}
 
@@ -204,10 +232,9 @@ def get_user_alerts(user_id):
     try:
         # Use query with IndexName for efficiency
         response = table_alerts.query(
-            IndexName='user_id-index', 
-            KeyConditionExpression=Key('user_id').eq(user_id)
+            IndexName="user_id-index", KeyConditionExpression=Key("user_id").eq(user_id)
         )
-        return response.get('Items', [])
+        return response.get("Items", [])
     except ClientError as e:
         print(f"Error fetching alerts: {e}")
         # Fallback: if you don't have a GSI yet, you can use scan (not recommended for production)

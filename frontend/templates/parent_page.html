@@ -86,6 +86,9 @@
     <div id="fall-modal" class="rescu-modal">
         <div class="modal-content">
             <h2 class="fall-title">FALL DETECTED!</h2>
+            <p style="font-size:0.9rem; color:#666;">
+                <strong>Detected at:</strong> <span id="fall-time"></span>
+            </p>
             <p>An emergency alert will be sent to your contacts in:</p>
             <div id="fall-countdown" class="countdown-text">{{ fall_delay }}</div>
             <button class="modal-btn btn-cancel" onclick="cancelFallAlert()">I'M OKAY (CANCEL)</button>
@@ -98,7 +101,7 @@
             <h2 class="emergency-title">🆘 EMERGENCY ALERT SENT</h2>
             <p>No response was detected. Your emergency contacts have been notified.</p>
 
-            <p style="font-size:0.9rem; color:#fff; margin-bottom: 5px;">
+            <p style="font-size:0.9rem; color:#666; margin-bottom: 5px;">
                 <strong>Time:</strong> <span id="emergency-time"></span>
             </p>
 
@@ -122,6 +125,7 @@
     let pendingFallData   = null;
 
     let isProcessingFall = false;
+    let fallDetectedTime = null;
 
     const FALL_SERVICE_UUID    = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID      = '44c94768-6610-4039-83eb-07919b82d665';
@@ -147,25 +151,30 @@
     }
 
     // --- 2. BACKEND CALL ---
-    function fireBackendCalls(bleData, location) {
-        const locStr = location
-            ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`
-            : "Location Unavailable";
-        fetch('/process-fall', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mcu: bleData, location })
-        });
-        fetch('/alert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: SESSION_USER_ID, location: locStr })
-        });
+    let currentAlertId = null;
+
+    async function fireBackendCalls(bleData, location, fallTime) {
+        try {
+            const res = await fetch('/process-fall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mcu: bleData, location, fall_time: fallTime })
+            });
+            const data = await res.json();
+            currentAlertId = data.alert_id || null;
+            console.log("Alert fired, alert_id:", currentAlertId);
+        } catch (err) {
+            console.error("process-fall failed:", err);
+        }
     }
 
     // --- 3. FALL MODAL ---
     function startFallGracePeriod(bleData) {
         if (fallModal.style.display === 'flex') return; // Don't restart if already showing
+
+        // Capture the real time at the moment of fall detection
+        fallDetectedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('fall-time').innerText = fallDetectedTime;
 
         pendingFallData = bleData;
         let timeLeft = FALL_DELAY;
@@ -180,18 +189,16 @@
 
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
-                // Transition immediately to the Emergency UI
-                closeFallModal();
-                handleEmergency(bleData);
+                // Countdown finished — wait for EMERGENCY signal from firmware
+                document.getElementById('fall-countdown').innerText = '...';
             }
         }, 1000);
 
-        // Backup safety timeout to match hardware
+        // Backup safety timeout — just close the visual if firmware never responds
         clearTimeout(fallAlertTimeout);
         fallAlertTimeout = setTimeout(() => {
             if (fallModal.style.display === 'flex') {
                 closeFallModal();
-                handleEmergency(bleData);
             }
         }, FALL_DELAY * 1000);
     }
@@ -205,7 +212,19 @@
 
     function cancelFallAlert() {
         closeFallModal();
-        pendingFallData = null;
+        pendingFallData  = null;
+        fallDetectedTime = null;
+
+        // If alert already reached the backend, cancel it there too
+        if (currentAlertId) {
+            fetch('/cancel-alert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alert_id: currentAlertId })
+            }).catch(err => console.error("cancel-alert failed:", err));
+            currentAlertId = null;
+        }
+
         if (fallChar) {
             fallChar.writeValue(new TextEncoder().encode(JSON.stringify({ type: "CANCEL" })))
                 .catch(err => console.error("Cancel write failed:", err));
@@ -218,21 +237,27 @@
         // Close fall modal if still open — emergency takes over
         closeFallModal();
 
+        // Use captured fall time, or fall back to now if emergency was triggered directly
+        const displayTime = fallDetectedTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('emergency-time').innerText = displayTime;
+
         navigator.geolocation.getCurrentPosition((pos) => {
             const location = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
             document.getElementById('emergency-location').innerText =
                 `Location: ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`;
             emergencyModal.style.display = 'flex';
-            fireBackendCalls(bleData, location);
+            fireBackendCalls(bleData, location, displayTime);
         }, () => {
             document.getElementById('emergency-location').innerText = 'Location: Unavailable';
             emergencyModal.style.display = 'flex';
-            fireBackendCalls(bleData, null);
+            fireBackendCalls(bleData, null, displayTime);
         }, { enableHighAccuracy: true });
     }
 
     function dismissEmergencyModal() {
         emergencyModal.style.display = 'none';
+        currentAlertId   = null;
+        fallDetectedTime = null;
     }
 
     // --- 5. BLUETOOTH LISTENER ---
@@ -283,6 +308,10 @@
                         startFallGracePeriod(data);
                     } else if (data.type === "EMERGENCY") {
                         handleEmergency(data);
+                    } else if (data.type === "CANCEL") {
+                        // Hardware button cancelled during countdown — just close the fall modal
+                        closeFallModal();
+                        console.log("Hardware cancel — fall alert dismissed.");
                     }
                 });
 

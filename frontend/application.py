@@ -358,16 +358,19 @@ def process_fall():
     payload = {
         "user_id": session["user_id"],
         "location": data.get("location", "Unknown Location"),
-        "cap_xml": cap_xml,  # Send the raw XML string to be stored and parsed by the backend
+        "cap_xml": cap_xml,
+        "fall_time": data.get("fall_time", "Unknown"),
     }
 
     try:
         # Forward to the API Gateway /alert endpoint (same as test_alert)
         response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
         if response.status_code == 200:
+            resp_data = response.json() if response.text else {}
             return {
                 "status": "processed",
                 "message": "Emergency alert triggered successfully",
+                "alert_id": resp_data.get("alert_id"),
             }, 200
         else:
             return {
@@ -376,6 +379,26 @@ def process_fall():
             }, response.status_code
     except Exception as e:
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
+
+
+@app.route("/cancel-alert", methods=["POST"])
+def cancel_alert():
+    if "user_id" not in session:
+        return {"status": "error", "message": "Unauthorized"}, 401
+
+    data = request.json
+    alert_id = data.get("alert_id")
+    if not alert_id:
+        return {"status": "error", "message": "alert_id required"}, 400
+
+    try:
+        response = requests.post(
+            f"{API_GATEWAY_URL}/alert/cancel",
+            json={"alert_id": alert_id}
+        )
+        return {"status": "cancelled"}, 200
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
 
 
 @app.route("/delete-account", methods=["POST"])

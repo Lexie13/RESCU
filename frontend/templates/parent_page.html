@@ -158,27 +158,34 @@
 
     // --- 3. FALL MODAL ---
     function startFallGracePeriod(bleData) {
-        closeFallModal();   // clear any previous interval/timeout before starting fresh
+        if (fallModal.style.display === 'flex') return; // Don't restart if already showing
+
         pendingFallData = bleData;
         let timeLeft = FALL_DELAY;
 
         document.getElementById('fall-countdown').innerText = timeLeft;
         fallModal.style.display = 'flex';
 
+        clearInterval(countdownInterval);
         countdownInterval = setInterval(() => {
             timeLeft -= 1;
             document.getElementById('fall-countdown').innerText = timeLeft;
-            if (timeLeft <= 0) clearInterval(countdownInterval);
+
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                // Transition immediately to the Emergency UI
+                closeFallModal();
+                handleEmergency(bleData);
+            }
         }, 1000);
 
-        // Grace period expired with no cancel — fire backend
+        // Backup safety timeout to match hardware
+        clearTimeout(fallAlertTimeout);
         fallAlertTimeout = setTimeout(() => {
-            closeFallModal();
-            navigator.geolocation.getCurrentPosition(
-                (pos) => fireBackendCalls(bleData, { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-                ()    => fireBackendCalls(bleData, null),
-                { enableHighAccuracy: true }
-            );
+            if (fallModal.style.display === 'flex') {
+                closeFallModal();
+                handleEmergency(bleData);
+            }
         }, FALL_DELAY * 1000);
     }
 
@@ -297,7 +304,7 @@
                 event.source.postMessage({type: "DISCONNECTED"}, "*");
             }
         }
-        
+
         // 4. DELAY CONFIG
         if (event.data?.type === "UPDATE_FALL_DELAY") {
             FALL_DELAY = event.data.value;
@@ -314,4 +321,3 @@
 </script>
 </body>
 </html>
-  

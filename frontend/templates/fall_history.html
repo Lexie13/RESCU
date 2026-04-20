@@ -16,7 +16,6 @@
             margin-bottom: 10px;
         }
 
-        /* ── Alert card list ── */
         .alert-list {
             display: flex;
             flex-direction: column;
@@ -36,7 +35,6 @@
             box-shadow: 0 4px 18px rgba(30, 144, 255, 0.10);
         }
 
-        /* ── Status badge ── */
         .alert-status-badge {
             display: inline-flex;
             align-items: center;
@@ -62,12 +60,6 @@
             border: 1px solid #fde68a;
         }
 
-        .alert-status-badge.unacknowledged {
-            background: #fff0f0;
-            color: #d9534f;
-            border: 1px solid #f5c6c6;
-        }
-
         .status-dot {
             width: 7px;
             height: 7px;
@@ -77,9 +69,7 @@
 
         .acknowledged .status-dot { background: #27ae60; }
         .pending .status-dot      { background: #f39c12; }
-        .unacknowledged .status-dot { background: #d9534f; }
 
-        /* ── Alert metadata ── */
         .alert-meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -108,113 +98,18 @@
             word-break: break-word;
         }
 
-        /* ── Expand details button ── */
-        .btn-details-toggle {
-            background: none;
-            border: 1px solid #ddd;
-            color: #888;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 700;
-            font-family: 'Roboto', sans-serif;
-            padding: 6px 14px;
-            cursor: pointer;
-            margin-top: 12px;
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
-            width: auto;
+        .ack-info-box {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px dashed #ddd;
         }
 
-        .btn-details-toggle:hover {
-            background: #f0f7ff;
-            border-color: #1E90FF;
-            color: #1E90FF;
-        }
-
-        /* ── Expandable CAP details panel ── */
-        .cap-details {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.35s ease, opacity 0.3s ease;
-            opacity: 0;
-        }
-
-        .cap-details.open {
-            max-height: 400px;
-            opacity: 1;
-        }
-
-        .cap-details-inner {
-            margin-top: 12px;
-            padding: 14px 16px;
-            background: #ffffff;
-            border: 1px solid #e8edf2;
-            border-radius: 8px;
-        }
-
-        .cap-details-inner .field-label {
-            margin-top: 10px;
-        }
-
-        .cap-details-inner .field-label:first-child {
-            margin-top: 0;
-        }
-
-        .cap-value {
-            font-size: 13px;
-            color: #555;
-            margin-top: 3px;
-            line-height: 1.5;
-            word-break: break-all;
-        }
-
-        /* ── Empty state ── */
-        .empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: #bbb;
-        }
-
-        .empty-state .empty-icon {
-            font-size: 3rem;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .empty-state p {
-            font-size: 15px;
-            margin: 0;
-            color: #aaa;
-        }
-
-        /* ── Summary strip at top of card ── */
-        .card-header-row {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 10px;
-        }
-
-        .alert-id-label {
-            font-size: 11px;
-            color: #ccc;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            margin-top: 2px;
-            word-break: break-all;
-        }
-
-        /* ── Acknowledged-by tag ── */
         .ack-by {
-            font-size: 12px;
+            font-size: 13px;
             color: #27ae60;
-            background: #e8f8f0;
-            border-radius: 6px;
-            padding: 3px 8px;
-            margin-top: 6px;
-            display: inline-block;
+            font-weight: 600;
         }
 
-        /* ── Pagination / count strip ── */
         .results-strip {
             font-size: 12px;
             font-weight: 700;
@@ -222,6 +117,19 @@
             letter-spacing: 1px;
             color: #bbb;
             margin-bottom: 14px;
+        }
+
+        .alert-id-label {
+            font-size: 11px;
+            color: #ccc;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .card-header-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
         }
 
         @media (max-width: 600px) {
@@ -247,12 +155,10 @@
                 <div class="alert-card">
 
                     <div class="card-header-row">
-                        <!-- Status badge -->
                         {% set status = alert.status | upper %}
                         <span class="alert-status-badge
                             {% if status == 'ACKNOWLEDGED' %}acknowledged
-                            {% elif status == 'PENDING' %}pending
-                            {% else %}unacknowledged{% endif %}">
+                            {% else %}pending{% endif %}">
                             <span class="status-dot"></span>
                             {{ alert.status | capitalize }}
                         </span>
@@ -260,47 +166,27 @@
                         <span class="alert-id-label">#{{ alert.alert_id[:8] | upper }}</span>
                     </div>
 
-                    <!-- Core metadata grid -->
                     <div class="alert-meta">
                         <div class="alert-meta-item">
-                            <span class="meta-label">Event Type</span>
-                            <span class="meta-value">{{ alert.event_type or 'Fall Detected' }}</span>
+                            <span class="meta-label">User ID</span>
+                            <span class="meta-value">{{ alert.user_id }}</span>
                         </div>
 
                         <div class="alert-meta-item">
-                            <span class="meta-label">Severity</span>
-                            <span class="meta-value">{{ alert.severity or 'Urgent' }}</span>
-                        </div>
-
-                        <div class="alert-meta-item">
-                            <span class="meta-label">Date &amp; Time</span>
+                            <span class="meta-label">Created At</span>
                             <span class="meta-value">{{ alert.created_at or '—' }}</span>
-                        </div>
-
-                        <div class="alert-meta-item">
-                            <span class="meta-label">Location</span>
-                            <span class="meta-value">{{ alert.location or '—' }}</span>
                         </div>
                     </div>
 
                     {% if alert.status | upper == 'ACKNOWLEDGED' %}
-                        <span class="ack-by">✓ Acknowledged by {{ alert.acknowledged_by or 'contact' }}
-                            {% if alert.acknowledged_at %} · {{ alert.acknowledged_at }}{% endif %}
-                        </span>
-                    {% endif %}
-
-                    <!-- Expandable CAP XML details -->
-                    {% if alert.cap_xml %}
-                    <button class="btn-details-toggle"
-                            onclick="toggleDetails(this, 'cap-{{ loop.index }}')">
-                        View CAP Details
-                    </button>
-                    <div class="cap-details" id="cap-{{ loop.index }}">
-                        <div class="cap-details-inner">
-                            <label class="field-label">Raw CAP XML</label>
-                            <p class="cap-value">{{ alert.cap_xml }}</p>
+                        <div class="ack-info-box">
+                            <span class="ack-by">
+                                ✓ Acknowledged by: <strong>{{ alert.acknowledged_by }}</strong>
+                                {% if alert.acknowledged_at %}
+                                    <br><small style="color: #888; font-weight: normal;">at {{ alert.acknowledged_at }}</small>
+                                {% endif %}
+                            </span>
                         </div>
-                    </div>
                     {% endif %}
 
                 </div>
@@ -316,15 +202,7 @@
 
     </div>
 
-    <a href="{{ url_for('home') }}" class="back-link">← Back to Dashboard</a>
+    <a href="{{ url_for('home') }}" class="back-link" style="color: white; text-decoration: none; display: block; margin-top: 20px;">← Back to Dashboard</a>
 </div>
-
-<script>
-function toggleDetails(btn, panelId) {
-    const panel = document.getElementById(panelId);
-    const open = panel.classList.toggle('open');
-    btn.textContent = open ? 'Hide CAP Details' : 'View CAP Details';
-}
-</script>
 </body>
 </html>

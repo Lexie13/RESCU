@@ -287,106 +287,22 @@
 </div>
 
 <script>
-function deleteAccount() {
-    fetch("/delete-account", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Delete failed');
-        window.location.href = "/";
-    })
-    .catch(() => alert('Could not delete account. Please try again.'));
-}
-
-// THIS LINE WAS MISSING:
 function saveField(btn, field) {
-    const payload = {};
-
-    if (field === 'role') {
-        const selected = document.querySelector('input[name="role"]:checked');
-        if (!selected) return;
-        payload.role = selected.value;
-    } else if (field === 'first_name') {
-        const val = document.getElementById('first_name').value.trim();
-        if (!val) { alert('Please enter a first name.'); return; }
-        payload.first_name = val;
-    } else if (field === 'last_name') {
-        const val = document.getElementById('last_name').value.trim();
-        if (!val) { alert('Please enter a last name.'); return; }
-        payload.last_name = val;
-    } else if (field === 'email') {
-        const email = document.getElementById('email').value.trim();
-        if (!email) { alert('Please enter an email address.'); return; }
-        payload.email = email;
-    }
-
-    fetch("{{ url_for('edit_profile') }}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.classList.add('saved');
-        btn.disabled = true;
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('saved');
-            btn.disabled = false;
-        }, 800);
-    })
-    .catch(() => alert('Could not save. Please try again.'));
+    alert("Save Field Clicked for: " + field);
 }
 
 function togglePassword(btn) {
+    alert("Toggle Password Clicked!");
     const fields = document.getElementById('password-fields');
-    const open = fields.classList.toggle('open');
-    // Note: You should add a .open { display: block; } rule in your CSS 
-    // or change style.display here since it's hidden by default.
-    fields.style.display = open ? 'block' : 'none'; 
-    btn.textContent = open ? 'Cancel' : 'Change Password';
-    if (!open) {
-        document.getElementById('new_password').value = '';
-        document.getElementById('confirm_password').value = '';
-        document.getElementById('pw-error').classList.remove('show');
-    }
+    fields.style.display = (fields.style.display === 'none') ? 'block' : 'none';
 }
 
 function savePassword(btn) {
-    const np  = document.getElementById('new_password').value;
-    const cp  = document.getElementById('confirm_password').value;
-    const err = document.getElementById('pw-error');
+    alert("Save Password Clicked!");
+}
 
-    if (!np || np !== cp) {
-        err.classList.add('show');
-        setTimeout(() => err.classList.remove('show'), 3000);
-        return;
-    }
-
-    err.classList.remove('show');
-
-    fetch("{{ url_for('edit_profile') }}", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_password: np })
-    })
-    .then(res => {
-        if (!res.ok) throw new Error('Save failed');
-        const orig = btn.textContent;
-        btn.textContent = '✓ Saved!';
-        btn.classList.add('saved');
-        btn.disabled = true;
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.classList.remove('saved');
-            btn.disabled = false;
-            togglePassword(document.querySelector('.btn-secondary'));
-        }, 800);
-    })
-    .catch(() => alert('Could not save password. Please try again.'));
+function deleteAccount() {
+    alert("Delete Account Clicked!");
 }
 </script>
 </body>

@@ -347,11 +347,29 @@ def device_status():
 
 @app.route("/process-fall", methods=["POST"])
 def process_fall():
+    if "user_id" not in session:
+        return {"status": "error", "message": "User not logged in"}, 401
+
     data = request.json
+    # Generate the CAP XML string using the utility function
     cap_xml = format_text.get_cap_xml_for_current_alert(data["mcu"], data["location"])
-    print("Generated CAP XML:")
-    print(cap_xml)
-    return {"status": "processed"}
+
+    # Prepare the payload for the backend /alert endpoint
+    payload = {
+        "user_id": session["user_id"],
+        "location": data.get("location", "Unknown Location"),
+        "cap_xml": cap_xml  # Send the raw XML string to be stored and parsed by the backend
+    }
+
+    try:
+        # Forward to the API Gateway /alert endpoint (same as test_alert)
+        response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
+        if response.status_code == 200:
+            return {"status": "processed", "message": "Emergency alert triggered successfully"}, 200
+        else:
+            return {"status": "error", "message": f"Backend failed: {response.text}"}, response.status_code
+    except Exception as e:
+        return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
 # =========================

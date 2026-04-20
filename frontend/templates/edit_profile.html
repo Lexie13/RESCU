@@ -287,22 +287,87 @@
 </div>
 
 <script>
-function saveField(btn, field) {
-    alert("Save Field Clicked for: " + field);
-}
-
+// Toggle Password Section
 function togglePassword(btn) {
-    alert("Toggle Password Clicked!");
     const fields = document.getElementById('password-fields');
-    fields.style.display = (fields.style.display === 'none') ? 'block' : 'none';
+    const isOpen = fields.classList.toggle('open');
+    fields.style.display = isOpen ? 'block' : 'none';
+    btn.textContent = isOpen ? 'Cancel' : 'Change Password';
 }
 
+// Save Individual Fields
+function saveField(btn, field) {
+    const formData = new FormData();
+    
+    if (field === 'role') {
+        const selected = document.querySelector('input[name="role"]:checked');
+        if (!selected) return;
+        formData.append('role', selected.value);
+    } else {
+        const input = document.getElementById(field);
+        if (!input) return;
+        formData.append(field, input.value.trim());
+    }
+
+    // Notice we DON'T use JSON.stringify here so request.form works in Python
+    fetch("{{ url_for('edit_profile') }}", {
+        method: 'POST',
+        body: formData 
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Save failed');
+        const origText = btn.textContent;
+        btn.textContent = '✓ Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => {
+            btn.textContent = origText;
+            btn.classList.remove('saved');
+        }, 1500);
+    })
+    .catch(err => alert('Error saving: ' + err));
+}
+
+// Save Password
 function savePassword(btn) {
-    alert("Save Password Clicked!");
+    const np = document.getElementById('new_password').value;
+    const cp = document.getElementById('confirm_password').value;
+
+    if (!np || np !== cp) {
+        document.getElementById('pw-error').style.display = 'block';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('new_password', np);
+    formData.append('confirm_password', cp);
+
+    fetch("{{ url_for('edit_profile') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed');
+        btn.textContent = '✓ Updated!';
+        setTimeout(() => {
+            location.reload(); // Reload to clear fields and hide section
+        }, 1000);
+    })
+    .catch(() => alert('Error updating password.'));
 }
 
+// Delete Account
 function deleteAccount() {
-    alert("Delete Account Clicked!");
+    fetch("{{ url_for('delete_account') }}", {
+        method: 'POST'
+    })
+    .then(res => {
+        if (res.ok) {
+            window.top.location.href = "{{ url_for('index') }}";
+        } else {
+            alert('Delete failed on server.');
+        }
+    })
+    .catch(() => alert('Network error.'));
 }
 </script>
 </body>

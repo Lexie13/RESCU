@@ -183,7 +183,6 @@ def acknowledge_alert(alert_id, contact_email):
             UpdateExpression=(
                 "SET #st = :st, acknowledged_by = :ack, " "acknowledged_at = :time"
             ),
-
             ExpressionAttributeNames={"#st": "status"},
             ExpressionAttributeValues={
                 ":st": "ACKNOWLEDGED",

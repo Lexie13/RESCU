@@ -386,10 +386,9 @@ def delete_account():
     try:
         # Assuming your API Gateway handles DELETE for the user
         response = requests.delete(
-            f"{API_GATEWAY_URL}/user",
-            json={"user_id": session.get("user_id")}
+            f"{API_GATEWAY_URL}/user", json={"user_id": session.get("user_id")}
         )
-        
+
         if response.status_code in (200, 204):
             session.clear()
             return {"status": "success"}, 200
@@ -398,10 +397,10 @@ def delete_account():
     except Exception as e:
         print(f"Delete failed: {e}")
         return {"status": "error", "message": str(e)}, 500
-        
+
 
 # =========================
-# EMERGENCY CONTACTS 
+# EMERGENCY CONTACTS
 # =========================
 @app.route("/fall-history")
 def fall_history():
@@ -409,25 +408,25 @@ def fall_history():
         return redirect(url_for("index"))
 
     user_id = session.get("user_id")
-    
+
     try:
         # Request alerts for the specific user from your API Gateway
         # Assuming your API has a GET /alert endpoint that takes a user_id
         response = requests.get(f"{API_GATEWAY_URL}/alert", params={"user_id": user_id})
-        
+
         if response.status_code == 200:
-            alerts = response.json() # This should be a list of alert objects
+            alerts = response.json()  # This should be a list of alert objects
         else:
             print(f"Failed to fetch alerts: {response.text}")
             alerts = []
-            
+
     except Exception as e:
         print(f"Error connecting to alert service: {e}")
         alerts = []
 
     # Sort alerts by date (newest first) if not already sorted by the backend
     if alerts:
-        alerts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        alerts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
     return render_template("fall_history.html", alerts=alerts)
 

@@ -125,7 +125,7 @@
     let pendingFallData   = null;
 
     let isProcessingFall = false;
-    let fallDetectedTime = null;  // captured when fall is first detected
+    let fallDetectedTime = null;
 
     const FALL_SERVICE_UUID    = '18a0ceb2-c728-41f4-af01-f06e15051107';
     const FALL_ALERT_UUID      = '44c94768-6610-4039-83eb-07919b82d665';
@@ -189,18 +189,16 @@
 
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
-                // Transition immediately to the Emergency UI
-                closeFallModal();
-                handleEmergency(bleData);
+                // Countdown finished — wait for EMERGENCY signal from firmware
+                document.getElementById('fall-countdown').innerText = '...';
             }
         }, 1000);
 
-        // Backup safety timeout to match hardware
+        // Backup safety timeout — just close the visual if firmware never responds
         clearTimeout(fallAlertTimeout);
         fallAlertTimeout = setTimeout(() => {
             if (fallModal.style.display === 'flex') {
                 closeFallModal();
-                handleEmergency(bleData);
             }
         }, FALL_DELAY * 1000);
     }
@@ -214,7 +212,8 @@
 
     function cancelFallAlert() {
         closeFallModal();
-        pendingFallData = null;
+        pendingFallData  = null;
+        fallDetectedTime = null;
 
         // If alert already reached the backend, cancel it there too
         if (currentAlertId) {
@@ -257,7 +256,8 @@
 
     function dismissEmergencyModal() {
         emergencyModal.style.display = 'none';
-        currentAlertId = null;
+        currentAlertId   = null;
+        fallDetectedTime = null;
     }
 
     // --- 5. BLUETOOTH LISTENER ---

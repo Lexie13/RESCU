@@ -190,6 +190,25 @@ def lambda_handler(event, context):
             else:
                 return {"statusCode": 500, "body": "Failed to acknowledge alert."}
 
+        # ROUTE: Get Alert History (GET /alert)
+        elif method == "GET" and path.lower().endswith("/alert"):
+            query_params = event.get("queryStringParameters") or {}
+            user_id = query_params.get("user_id")
+
+            if not user_id:
+                return {
+                    "statusCode": 400,
+                    "body": json.dumps("user_id is required for history")
+                }
+
+            from alert_service import get_user_alerts
+            alerts = get_user_alerts(user_id)
+            
+            return {
+                "statusCode": 200,
+                "body": json.dumps(alerts, cls=DecimalEncoder)
+            }
+
         # DEFAULT ROUTE: Handle unmatched paths/methods
         return {
             "statusCode": 404,

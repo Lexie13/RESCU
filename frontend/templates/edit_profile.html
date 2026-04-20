@@ -299,6 +299,8 @@ function deleteAccount() {
     .catch(() => alert('Could not delete account. Please try again.'));
 }
 
+// THIS LINE WAS MISSING:
+function saveField(btn, field) {
     const payload = {};
 
     if (field === 'role') {
@@ -342,6 +344,9 @@ function deleteAccount() {
 function togglePassword(btn) {
     const fields = document.getElementById('password-fields');
     const open = fields.classList.toggle('open');
+    // Note: You should add a .open { display: block; } rule in your CSS 
+    // or change style.display here since it's hidden by default.
+    fields.style.display = open ? 'block' : 'none'; 
     btn.textContent = open ? 'Cancel' : 'Change Password';
     if (!open) {
         document.getElementById('new_password').value = '';

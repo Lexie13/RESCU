@@ -358,16 +358,22 @@ def process_fall():
     payload = {
         "user_id": session["user_id"],
         "location": data.get("location", "Unknown Location"),
-        "cap_xml": cap_xml  # Send the raw XML string to be stored and parsed by the backend
+        "cap_xml": cap_xml,  # Send the raw XML string to be stored and parsed by the backend
     }
 
     try:
         # Forward to the API Gateway /alert endpoint (same as test_alert)
         response = requests.post(f"{API_GATEWAY_URL}/alert", json=payload)
         if response.status_code == 200:
-            return {"status": "processed", "message": "Emergency alert triggered successfully"}, 200
+            return {
+                "status": "processed",
+                "message": "Emergency alert triggered successfully",
+            }, 200
         else:
-            return {"status": "error", "message": f"Backend failed: {response.text}"}, response.status_code
+            return {
+                "status": "error",
+                "message": f"Backend failed: {response.text}",
+            }, response.status_code
     except Exception as e:
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 

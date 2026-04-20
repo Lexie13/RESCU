@@ -401,40 +401,34 @@ def delete_account():
         
 
 # =========================
-# EMERGENCY CONTACTS (STUB)
+# EMERGENCY CONTACTS 
 # =========================
 @app.route("/fall-history")
 def fall_history():
-    if "username" not in session:
+    if "user_id" not in session:
         return redirect(url_for("index"))
 
-    # This is mock data so the page renders without needing DynamoDB
-    alerts = [
-        {
-            "alert_id": "STUB-001",
-            "status": "RESOLVED",
-            "event_type": "Manual Test",
-            "severity": "Low",
-            "location": "Purdue University - ECE Building",
-            "created_at": "2026-04-20 10:00:00",
-            "acknowledged_by": "System",
-            "acknowledged_at": "2026-04-20 10:05:00",
-            "cap_xml": ""
-        },
-        {
-            "alert_id": "STUB-002",
-            "status": "PENDING",
-            "event_type": "Fall Detected",
-            "severity": "Urgent",
-            "location": "West Lafayette, IN",
-            "created_at": "2026-04-20 12:30:00",
-            "acknowledged_by": "",
-            "acknowledged_at": "",
-            "cap_xml": ""
-        }
-    ]
+    user_id = session.get("user_id")
+    
+    try:
+        # Request alerts for the specific user from your API Gateway
+        # Assuming your API has a GET /alert endpoint that takes a user_id
+        response = requests.get(f"{API_GATEWAY_URL}/alert", params={"user_id": user_id})
+        
+        if response.status_code == 200:
+            alerts = response.json() # This should be a list of alert objects
+        else:
+            print(f"Failed to fetch alerts: {response.text}")
+            alerts = []
+            
+    except Exception as e:
+        print(f"Error connecting to alert service: {e}")
+        alerts = []
 
-    # This will now successfully render your 'fall_history.html' template
+    # Sort alerts by date (newest first) if not already sorted by the backend
+    if alerts:
+        alerts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
     return render_template("fall_history.html", alerts=alerts)
 
 

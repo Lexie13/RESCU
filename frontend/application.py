@@ -2,9 +2,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import os
 import format_text
 import requests
-import boto3
-import xml.etree.ElementTree as ET
-from botocore.exceptions import ClientError
 
 app = Flask(__name__)
 application = app
@@ -18,8 +15,6 @@ API_GATEWAY_URL = os.environ.get(
 def index():
     return render_template("login.html")
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table_alerts = dynamodb.Table('YourTableNameHere')
 
 # =========================
 # SIGNUP ROUTES
@@ -383,50 +378,41 @@ def process_fall():
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
+# =========================
+# EMERGENCY CONTACTS (STUB)
+# =========================
 @app.route("/fall-history")
 def fall_history():
     if "username" not in session:
         return redirect(url_for("index"))
 
-    user_id = session.get("user_id")
-    alerts = []
+    # This is mock data so the page renders without needing DynamoDB
+    alerts = [
+        {
+            "alert_id": "STUB-001",
+            "status": "RESOLVED",
+            "event_type": "Manual Test",
+            "severity": "Low",
+            "location": "Purdue University - ECE Building",
+            "created_at": "2026-04-20 10:00:00",
+            "acknowledged_by": "System",
+            "acknowledged_at": "2026-04-20 10:05:00",
+            "cap_xml": ""
+        },
+        {
+            "alert_id": "STUB-002",
+            "status": "PENDING",
+            "event_type": "Fall Detected",
+            "severity": "Urgent",
+            "location": "West Lafayette, IN",
+            "created_at": "2026-04-20 12:30:00",
+            "acknowledged_by": "",
+            "acknowledged_at": "",
+            "cap_xml": ""
+        }
+    ]
 
-    try:
-        response = table_alerts.query(
-            IndexName="user_id-index",
-            KeyConditionExpression=boto3.dynamodb.conditions.Key("user_id").eq(user_id),
-            ScanIndexForward=False,  # newest first
-        )
-        for item in response.get("Items", []):
-            event_type, severity = "Fall Detected", "Urgent"
-            cap_xml = item.get("cap_xml", "")
-            if cap_xml:
-                try:
-                    root = ET.fromstring(cap_xml)
-                    ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
-                    event_node = root.find(".//cap:event", ns)
-                    severity_node = root.find(".//cap:severity", ns)
-                    if event_node is not None:
-                        event_type = event_node.text
-                    if severity_node is not None:
-                        severity = severity_node.text
-                except Exception:
-                    pass
-
-            alerts.append({
-                "alert_id":        item.get("alert_id", ""),
-                "status":          item.get("status", "PENDING"),
-                "event_type":      event_type,
-                "severity":        severity,
-                "location":        item.get("location", "—"),
-                "created_at":      item.get("created_at", "—"),
-                "acknowledged_by": item.get("acknowledged_by", ""),
-                "acknowledged_at": item.get("acknowledged_at", ""),
-                "cap_xml":         cap_xml,
-            })
-    except ClientError as e:
-        print(f"DynamoDB error fetching alerts: {e}")
-
+    # This will now successfully render your 'fall_history.html' template
     return render_template("fall_history.html", alerts=alerts)
 
 

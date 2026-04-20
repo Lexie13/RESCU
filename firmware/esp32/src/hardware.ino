@@ -179,15 +179,11 @@ class ServerCallbacks : public BLEServerCallbacks {
     device_connected = true;
     digitalWrite(LED_STATUS, HIGH);
     Serial.println("[BLE] Device connected.");
-    readBattery();
-    delay(100);
     sendBatteryLevel();
   }
   void onDisconnect(BLEServer* pServer) {
     device_connected  = false;
-    // Small delay ensures the stack is ready to rebroadcast
-    delay(10); 
-    pServer->startAdvertising();
+    needsAdvRestart   = true;
     digitalWrite(LED_STATUS, LOW);
     Serial.println("[BLE] Device disconnected.");
   }
@@ -376,7 +372,7 @@ void setup() {
 
   Wire.begin(I2C_SDA, I2C_SCL);
   Wire.setClock(400000);
-  imu.begin();
+  imu.begin(0x6A);
   calibrateVerticalAxis();
 
   if (lipo.begin() == false) {
@@ -549,14 +545,10 @@ void loop() {
         if (buttonJustPressed) {
           Serial.println("Manual SOS triggered.");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
-          
-          state = FALL_DETECTED; 
-          
-          fall_signal = true;
-          emergency_signal = false; // Ensure emergency is not triggered yet
+          state            = EMERGENCY;
+          emergency_signal = true;
+          fall_signal      = true;
           xSemaphoreGive(state_mutex);
-          
-          fall_start_ms = millis(); // Initialize timer for the grace period
         }
         break;
 
@@ -568,26 +560,26 @@ void loop() {
 
       case FALL_DETECTED: {
         unsigned long elapsed   = now_ms - fall_start_ms;
-        // Use the dynamic ble_alert_timeout_ms for the countdown calculation
-        unsigned long remaining = (elapsed < ble_alert_timeout_ms)
-                                  ? (ble_alert_timeout_ms - elapsed) / 1000 : 0;
+        unsigned long remaining = (elapsed < ALERT_TIMEOUT_MS)
+                                  ? (ALERT_TIMEOUT_MS - elapsed) / 1000 : 0;
+        if (now_ms - last_msg_ms >= 1000) {
+          last_msg_ms = now_ms;
+          Serial.print("Fall alert — "); Serial.print(remaining); Serial.println("s to cancel");
+        }
 
         if (buttonJustPressed || app_cancel) {
           Serial.println(app_cancel ? "App cancelled alert." : "User cancelled alert.");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           fall_signal = false;
-          ble_cancel_request = false; // Reset the flag
           state       = IDLE;
           xSemaphoreGive(state_mutex);
         }
-
         if (elapsed > ble_alert_timeout_ms) {
           Serial.println("!!! EMERGENCY — no user response !!!");
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           state            = EMERGENCY;
           emergency_signal = true;
           xSemaphoreGive(state_mutex);
-          sendEmergencyAlert(); // Notify frontend immediately of state change
         }
         break;
       }
@@ -603,9 +595,6 @@ void loop() {
         }
         break;
     }
-    lastBtnState = currentBtnState;
-  }
-}
     lastBtnState = currentBtnState;
   }
 }

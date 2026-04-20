@@ -393,8 +393,7 @@ def cancel_alert():
 
     try:
         response = requests.post(
-            f"{API_GATEWAY_URL}/alert/cancel",
-            json={"alert_id": alert_id}
+            f"{API_GATEWAY_URL}/alert/cancel", json={"alert_id": alert_id}
         )
         return {"status": "cancelled"}, 200
     except Exception as e:

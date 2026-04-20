@@ -21,7 +21,9 @@ API_GATEWAY_URL = os.environ.get(
 )
 
 
-def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="", fall_time="Unknown"):
+def trigger_emergency_email_loop(
+    user_id, location_data="No Location", cap_xml="", fall_time="Unknown"
+):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
         user_profile = response.get("Item")
@@ -141,7 +143,9 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                         },
                     )
                     notified_contacts.append(contact_email)
-                    print(f"[Round {round_num}] Alert sent to {contact_email}. Waiting for acknowledgment...")
+                    print(
+                        f"[Round {round_num}] Alert sent to {contact_email}. Waiting for acknowledgment..."
+                    )
 
                     wait_time_seconds = 15
                     poll_interval = 5
@@ -153,12 +157,17 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                         alert_record = table_alerts.get_item(
                             Key={"alert_id": alert_id}
                         ).get("Item")
-                        if alert_record and alert_record.get("status") in ("ACKNOWLEDGED", "CANCELLED"):
+                        if alert_record and alert_record.get("status") in (
+                            "ACKNOWLEDGED",
+                            "CANCELLED",
+                        ):
                             is_acknowledged = True
                             break
 
                     if is_acknowledged:
-                        print(f"Alert {alert_id} acknowledged/cancelled. Stopping loop.")
+                        print(
+                            f"Alert {alert_id} acknowledged/cancelled. Stopping loop."
+                        )
                         break
 
                 except ClientError as sns_err:

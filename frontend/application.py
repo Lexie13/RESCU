@@ -358,7 +358,8 @@ def process_fall():
     payload = {
         "user_id": session["user_id"],
         "location": data.get("location", "Unknown Location"),
-        "cap_xml": cap_xml,  # Send the raw XML string to be stored and parsed by the backend
+        "cap_xml": cap_xml,
+        "fall_time": data.get("fall_time", "Unknown"),
     }
 
     try:

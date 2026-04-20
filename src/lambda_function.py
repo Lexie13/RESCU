@@ -95,6 +95,7 @@ def lambda_handler(event, context):
             user_id = body.get("user_id")
             location = body.get("location", "Location Unavailable")
             cap_xml = body.get("cap_xml", "")
+            fall_time = body.get("fall_time", "Unknown")
 
             if not user_id:
                 return {
@@ -102,7 +103,7 @@ def lambda_handler(event, context):
                     "body": json.dumps("user_id required to trigger alert"),
                 }
 
-            result = trigger_emergency_email_loop(user_id, location, cap_xml)
+            result = trigger_emergency_email_loop(user_id, location, cap_xml, fall_time)
             return {
                 "statusCode": 200 if result["success"] else 500,
                 "body": json.dumps(result, cls=DecimalEncoder),

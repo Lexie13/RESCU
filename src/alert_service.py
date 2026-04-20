@@ -5,6 +5,7 @@ import uuid
 import datetime
 from botocore.exceptions import ClientError
 import xml.etree.ElementTree as ET
+from boto3.dynamodb.conditions import Key
 
 region = os.environ.get("AWS_REGION", "us-east-1")
 dynamodb = boto3.resource("dynamodb", region_name=region)
@@ -193,3 +194,23 @@ def acknowledge_alert(alert_id, contact_email):
         return {"success": True}
     except ClientError as e:
         return {"success": False, "error": str(e)}
+
+
+def get_user_alerts(user_id):
+    """
+    Retrieves all alert history for a specific user.
+    Assumes a GSI named 'user_id-index' exists on the alerts table.
+    """
+    try:
+        # Use query with IndexName for efficiency
+        response = table_alerts.query(
+            IndexName='user_id-index', 
+            KeyConditionExpression=Key('user_id').eq(user_id)
+        )
+        return response.get('Items', [])
+    except ClientError as e:
+        print(f"Error fetching alerts: {e}")
+        # Fallback: if you don't have a GSI yet, you can use scan (not recommended for production)
+        # response = table_alerts.scan(FilterExpression=Key('user_id').eq(user_id))
+        # return response.get('Items', [])
+        return []

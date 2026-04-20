@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import os
 import format_text
 import requests
+import boto3
+import xml.etree.ElementTree as ET
+from botocore.exceptions import ClientError
 
 app = Flask(__name__)
 application = app
@@ -378,12 +381,51 @@ def process_fall():
         return {"status": "error", "message": f"Connection failed: {str(e)}"}, 500
 
 
-# =========================
-# REMAINING STUBS
-# =========================
 @app.route("/fall-history")
 def fall_history():
-    return "Fall History Page"
+    if "username" not in session:
+        return redirect(url_for("index"))
+
+    user_id = session.get("user_id")
+    alerts = []
+
+    try:
+        response = table_alerts.query(
+            IndexName="user_id-index",
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("user_id").eq(user_id),
+            ScanIndexForward=False,  # newest first
+        )
+        for item in response.get("Items", []):
+            event_type, severity = "Fall Detected", "Urgent"
+            cap_xml = item.get("cap_xml", "")
+            if cap_xml:
+                try:
+                    root = ET.fromstring(cap_xml)
+                    ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
+                    event_node = root.find(".//cap:event", ns)
+                    severity_node = root.find(".//cap:severity", ns)
+                    if event_node is not None:
+                        event_type = event_node.text
+                    if severity_node is not None:
+                        severity = severity_node.text
+                except Exception:
+                    pass
+
+            alerts.append({
+                "alert_id":        item.get("alert_id", ""),
+                "status":          item.get("status", "PENDING"),
+                "event_type":      event_type,
+                "severity":        severity,
+                "location":        item.get("location", "—"),
+                "created_at":      item.get("created_at", "—"),
+                "acknowledged_by": item.get("acknowledged_by", ""),
+                "acknowledged_at": item.get("acknowledged_at", ""),
+                "cap_xml":         cap_xml,
+            })
+    except ClientError as e:
+        print(f"DynamoDB error fetching alerts: {e}")
+
+    return render_template("fall_history.html", alerts=alerts)
 
 
 if __name__ == "__main__":

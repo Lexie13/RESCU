@@ -28,6 +28,8 @@ def subscribe_email_to_alerts(email):
     """
     Subscribes a new email address to the SNS topic only if it doesn't exist.
     """
+    email = email.lower()
+
     try:
         # 1. List existing subscriptions for the topic
         paginator = sns_client.get_paginator("list_subscriptions_by_topic")

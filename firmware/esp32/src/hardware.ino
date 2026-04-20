@@ -179,11 +179,15 @@ class ServerCallbacks : public BLEServerCallbacks {
     device_connected = true;
     digitalWrite(LED_STATUS, HIGH);
     Serial.println("[BLE] Device connected.");
+    readBattery();
+    delay(100);
     sendBatteryLevel();
   }
   void onDisconnect(BLEServer* pServer) {
     device_connected  = false;
-    needsAdvRestart   = true;
+    // Small delay ensures the stack is ready to rebroadcast
+    delay(10); 
+    pServer->startAdvertising();
     digitalWrite(LED_STATUS, LOW);
     Serial.println("[BLE] Device disconnected.");
   }
@@ -599,6 +603,9 @@ void loop() {
         }
         break;
     }
+    lastBtnState = currentBtnState;
+  }
+}
     lastBtnState = currentBtnState;
   }
 }

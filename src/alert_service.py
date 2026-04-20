@@ -74,6 +74,9 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
             }
         )
 
+        # Return alert_id early so caller can pass it back to the frontend
+        # (the loop continues but the ID is now known)
+
         event_type = "Fall Detected"
         severity = "URGENT"
         if cap_xml:
@@ -142,11 +145,11 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
                 for _ in range(iterations):
                     time.sleep(poll_interval)
 
-                    # Check if status changed
+                    # Check if status changed to ACKNOWLEDGED or CANCELLED
                     alert_record = table_alerts.get_item(
                         Key={"alert_id": alert_id}
                     ).get("Item")
-                    if alert_record and alert_record.get("status") == "ACKNOWLEDGED":
+                    if alert_record and alert_record.get("status") in ("ACKNOWLEDGED", "CANCELLED"):
                         is_acknowledged = True
                         break  # Break the polling loop
 
@@ -162,14 +165,35 @@ def trigger_emergency_email_loop(user_id, location_data="No Location", cap_xml="
             return {
                 "success": True,
                 "message": "Alert acknowledged",
+                "alert_id": alert_id,
                 "notified": notified_contacts,
             }
         else:
             return {
                 "success": False,
+                "alert_id": alert_id,
                 "error": ("Loop finished, but no contact acknowledged the alert."),
             }
 
+    except ClientError as e:
+        return {"success": False, "error": str(e)}
+
+
+def cancel_alert(alert_id):
+    """
+    Marks an alert as CANCELLED so the polling loop stops immediately.
+    """
+    try:
+        table_alerts.update_item(
+            Key={"alert_id": alert_id},
+            UpdateExpression="SET #st = :st, cancelled_at = :time",
+            ExpressionAttributeNames={"#st": "status"},
+            ExpressionAttributeValues={
+                ":st": "CANCELLED",
+                ":time": datetime.datetime.utcnow().isoformat(),
+            },
+        )
+        return {"success": True}
     except ClientError as e:
         return {"success": False, "error": str(e)}
 

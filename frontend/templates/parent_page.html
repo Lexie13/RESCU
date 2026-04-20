@@ -147,20 +147,21 @@
     }
 
     // --- 2. BACKEND CALL ---
-    function fireBackendCalls(bleData, location) {
-        const locStr = location
-            ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`
-            : "Location Unavailable";
-        fetch('/process-fall', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mcu: bleData, location })
-        });
-        fetch('/alert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: SESSION_USER_ID, location: locStr })
-        });
+    let currentAlertId = null;
+
+    async function fireBackendCalls(bleData, location) {
+        try {
+            const res = await fetch('/process-fall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mcu: bleData, location })
+            });
+            const data = await res.json();
+            currentAlertId = data.alert_id || null;
+            console.log("Alert fired, alert_id:", currentAlertId);
+        } catch (err) {
+            console.error("process-fall failed:", err);
+        }
     }
 
     // --- 3. FALL MODAL ---
@@ -201,11 +202,22 @@
         clearInterval(countdownInterval);
         fallAlertTimeout = null;
         fallModal.style.display = 'none';
-    } 
+    }
 
     function cancelFallAlert() {
         closeFallModal();
         pendingFallData = null;
+
+        // If alert already reached the backend, cancel it there too
+        if (currentAlertId) {
+            fetch('/cancel-alert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alert_id: currentAlertId })
+            }).catch(err => console.error("cancel-alert failed:", err));
+            currentAlertId = null;
+        }
+
         if (fallChar) {
             fallChar.writeValue(new TextEncoder().encode(JSON.stringify({ type: "CANCEL" })))
                 .catch(err => console.error("Cancel write failed:", err));
@@ -233,6 +245,7 @@
 
     function dismissEmergencyModal() {
         emergencyModal.style.display = 'none';
+        currentAlertId = null;
     }
 
     // --- 5. BLUETOOTH LISTENER ---
@@ -283,6 +296,10 @@
                         startFallGracePeriod(data);
                     } else if (data.type === "EMERGENCY") {
                         handleEmergency(data);
+                    } else if (data.type === "CANCEL") {
+                        // Hardware button cancelled during countdown — just close the fall modal
+                        closeFallModal();
+                        console.log("Hardware cancel — fall alert dismissed.");
                     }
                 });
 

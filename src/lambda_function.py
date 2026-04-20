@@ -31,7 +31,7 @@ def lambda_handler(event, context):
             path = event["requestContext"].get("http", {}).get("path", "")
 
         body_raw = event.get("body", "{}")
-        body = json.loads(body_raw) if isinstance(body_raw, str) else body_raw
+        body = json.loads(body_raw, parse_float=Decimal) if isinstance(body_raw, str) else body_raw
 
         # ROUTE: Create User (PUT /login)
         if method == "PUT" and "login" in path.lower():

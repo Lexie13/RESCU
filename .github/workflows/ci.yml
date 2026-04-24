@@ -35,7 +35,7 @@ jobs:
         run: |
           # Specifically target the src and tests directories
           # E501 ignores line length errors
-          flake8 src tests --ignore=E501
+          flake8 src tests --ignore=E501 --extend-ignore=W503
 
       # step 5: Format check with Black
       - name: Run Black (check only)

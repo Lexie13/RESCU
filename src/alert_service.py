@@ -76,7 +76,7 @@ def trigger_emergency_email_loop(
 
                 event_node = root.find(".//cap:event", ns)
                 severity_node = root.find(".//cap:severity", ns)
-                
+
                 # Standard CAP Location Nodes
                 area_desc_node = root.find(".//cap:areaDesc", ns)
                 circle_node = root.find(".//cap:circle", ns)
@@ -86,7 +86,7 @@ def trigger_emergency_email_loop(
                     event_type = event_node.text
                 if severity_node is not None and severity_node.text:
                     severity = severity_node.text
-                    
+
                 # Extract Location Data
                 loc_parts = []
                 if area_desc_node is not None and area_desc_node.text:
@@ -95,7 +95,7 @@ def trigger_emergency_email_loop(
                     loc_parts.append(f"Coordinates: {circle_node.text}")
                 if polygon_node is not None and polygon_node.text:
                     loc_parts.append(f"Polygon: {polygon_node.text}")
-                    
+
                 if loc_parts:
                     location_data = " | ".join(loc_parts)
 
@@ -103,7 +103,10 @@ def trigger_emergency_email_loop(
                 print(f"XML Parsing failed, falling back to defaults: {parse_err}")
 
         # Enforce the "Not Available" constraint if location data is empty or still holds a default value
-        if not location_data or location_data in ["No Location", "Location Unavailable"]:
+        if not location_data or location_data in [
+            "No Location",
+            "Location Unavailable",
+        ]:
             location_data = "Not Available"
 
         # 1. CREATE THE ALERT RECORD (Now uses the dynamically parsed location)

@@ -22,7 +22,7 @@ API_GATEWAY_URL = os.environ.get(
 
 
 def trigger_emergency_email_loop(
-    user_id, location_data="No Location", cap_xml="", fall_time="Unknown"
+    user_id, location_data="Not Available", cap_xml="", fall_time="Unknown"
 ):
     try:
         response = table_users.get_item(Key={"user_id": user_id})
@@ -64,7 +64,49 @@ def trigger_emergency_email_loop(
 
         parsed_contacts.sort(key=lambda x: x.get("priority", 99))
 
-        # 1. CREATE THE ALERT RECORD
+        # --- NEW: Parse XML BEFORE Database Insertion ---
+        event_type = "Fall Detected"
+        severity = "URGENT"
+
+        if cap_xml:
+            try:
+                root = ET.fromstring(cap_xml)
+                # Standard CAP Namespace
+                ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
+
+                event_node = root.find(".//cap:event", ns)
+                severity_node = root.find(".//cap:severity", ns)
+                
+                # Standard CAP Location Nodes
+                area_desc_node = root.find(".//cap:areaDesc", ns)
+                circle_node = root.find(".//cap:circle", ns)
+                polygon_node = root.find(".//cap:polygon", ns)
+
+                if event_node is not None and event_node.text:
+                    event_type = event_node.text
+                if severity_node is not None and severity_node.text:
+                    severity = severity_node.text
+                    
+                # Extract Location Data
+                loc_parts = []
+                if area_desc_node is not None and area_desc_node.text:
+                    loc_parts.append(area_desc_node.text)
+                if circle_node is not None and circle_node.text:
+                    loc_parts.append(f"Coordinates: {circle_node.text}")
+                if polygon_node is not None and polygon_node.text:
+                    loc_parts.append(f"Polygon: {polygon_node.text}")
+                    
+                if loc_parts:
+                    location_data = " | ".join(loc_parts)
+
+            except Exception as parse_err:
+                print(f"XML Parsing failed, falling back to defaults: {parse_err}")
+
+        # Enforce the "Not Available" constraint if location data is empty or still holds a default value
+        if not location_data or location_data in ["No Location", "Location Unavailable"]:
+            location_data = "Not Available"
+
+        # 1. CREATE THE ALERT RECORD (Now uses the dynamically parsed location)
         alert_id = str(uuid.uuid4())
         table_alerts.put_item(
             Item={
@@ -75,27 +117,6 @@ def trigger_emergency_email_loop(
                 "created_at": datetime.datetime.utcnow().isoformat(),
             }
         )
-
-        # Return alert_id early so caller can pass it back to the frontend
-        # (the loop continues but the ID is now known)
-
-        event_type = "Fall Detected"
-        severity = "URGENT"
-        if cap_xml:
-            try:
-                root = ET.fromstring(cap_xml)
-                # Standard CAP Namespace
-                ns = {"cap": "urn:oasis:names:tc:emergency:cap:1.2"}
-
-                event_node = root.find(".//cap:event", ns)
-                severity_node = root.find(".//cap:severity", ns)
-
-                if event_node is not None:
-                    event_type = event_node.text
-                if severity_node is not None:
-                    severity = severity_node.text
-            except Exception as parse_err:
-                print(f"XML Parsing failed,  falling back to defaults: {parse_err}")
 
         notified_contacts = []
         is_acknowledged = False

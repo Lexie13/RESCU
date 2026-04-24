@@ -10,6 +10,7 @@ on:
       - test-alerts
       - haejune
       - alert-loop
+      - location
 
 permissions:
   id-token: write

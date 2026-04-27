@@ -114,16 +114,6 @@
     <div class="page-card">
         
         <div class="field-group">
-            <label class="field-label">Bluetooth Device Name</label>
-            <div class="field-group-inner">
-                <input type="text" id="device_name" value="{{ device_name or 'RESCU-Wearable' }}" placeholder="e.g. My RESCU Device">
-                <button class="btn-save-inline" onclick="saveSetting(this, 'device_name')">Save</button>
-            </div>
-        </div>
-
-        <hr>
-
-        <div class="field-group">
             <label class="field-label">Alert Delay Period</label>
             <p style="font-size: 13px; color: #777; margin: 4px 0;">Time to wait before notifying contacts after a fall.</p>
             <div class="slider-container">
@@ -158,9 +148,7 @@
     function saveSetting(btn, settingKey) {
         const payload = {};
         
-        if (settingKey === 'device_name') {
-            payload.device_name = document.getElementById('device_name').value.trim();
-        } else if (settingKey === 'fall_delay') {
+        if (settingKey === 'fall_delay') {
             payload.fall_delay = document.getElementById('fall_delay').value;
         }
 

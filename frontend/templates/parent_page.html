@@ -311,6 +311,7 @@
                     } else if (data.type === "CANCEL") {
                         // Hardware button cancelled during countdown — just close the fall modal
                         closeFallModal();
+                        dismissEmergencyModal();
                         console.log("Hardware cancel — fall alert dismissed.");
                     }
                 });

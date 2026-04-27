@@ -93,6 +93,7 @@
 
         .status-red { color: #ff4d4d !important; }
         .status-green { color: #2ecc71 !important; }
+        .status-yellow { color: #f1c40f !important; }
 
         @media (max-width: 600px) {
             .status-row { flex-direction: column; width: 100%; }
@@ -160,12 +161,12 @@
         statusEl.textContent = statusText;
 
         if (connected) {
-            statusEl.classList.remove("status-red");
+            statusEl.classList.remove("status-red", "status-yellow");
             statusEl.classList.add("status-green");
             connectBtn.textContent = "Disconnect from RESCU Device";
             connectBtn.style.background = "#cc0000";
         } else {
-            statusEl.classList.remove("status-green");
+            statusEl.classList.remove("status-green", "status-yellow");
             statusEl.classList.add("status-red");
             connectBtn.textContent = "Connect to RESCU Device";
             connectBtn.style.background = "#800080";
@@ -180,6 +181,8 @@
             updateConnectionUI(false, "Disconnected");
         } else {
             statusEl.textContent = "Searching...";
+            statusEl.classList.remove("status-red", "status-green");
+            statusEl.classList.add("status-yellow");
             window.parent.postMessage("CONNECT_BLE", "*");
         }
     });

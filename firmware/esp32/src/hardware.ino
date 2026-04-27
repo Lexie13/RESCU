@@ -9,6 +9,8 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "esp_sleep.h"
 #include "driver/rtc_io.h"
+#include "driver/ledc.h"
+#include "soc/gpio_sig_map.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -33,6 +35,8 @@ SFE_MAX1704X lipo;
 #define BTN_DEFAULT 38   // sleep / wake
 #define BTN_POWER   34   // 34 - original
 #define BTN_ALERT   39   // 39 - original
+#define BUZZER_PIN_A 25  // Piezo + terminal (LEDC drive)
+#define BUZZER_PIN_B 26  // Piezo − terminal (inverted drive)
 
 // ── Fall detection config ─────────────────────────────────────────────────
 #define WINDOW_SIZE         476
@@ -83,6 +87,7 @@ volatile SystemState state = IDLE;
 volatile bool  fall_signal         = false;
 volatile bool  emergency_signal    = false;
 volatile bool  ble_cancel_request  = false;
+volatile bool  cancel_signal       = false;  // set by Core 1 when hw button cancels; BLE task notifies app
 volatile float battery_soc_shared  = 0.0f;
 volatile bool  device_connected    = false;
 
@@ -149,6 +154,15 @@ void sendFallAlert() {
     pFallAlert->setValue(payload.c_str());
     pFallAlert->notify();
     Serial.println("[BLE] Fall alert sent: " + payload);
+  }
+}
+
+void sendCancelAlert() {
+  if (device_connected) {
+    String payload = "{\"type\":\"CANCEL\",\"device_id\":\"" DEVICE_ID "\"}";
+    pFallAlert->setValue(payload.c_str());
+    pFallAlert->notify();
+    Serial.println("[BLE] Cancel alert sent to app.");
   }
 }
 
@@ -230,6 +244,16 @@ void ble_task(void* pvParams) {
     }
     last_emergency_signal = current_emergency;
 
+    // Send CANCEL notification to app when hardware button cancelled an alert
+    bool current_cancel;
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    current_cancel = cancel_signal;
+    if (cancel_signal) cancel_signal = false;
+    xSemaphoreGive(state_mutex);
+    if (current_cancel) {
+      sendCancelAlert();
+    }
+
     if (device_connected && (now_ms - last_ble_bat_ms >= BLE_BATTERY_MS)) {
       last_ble_bat_ms = now_ms;
       sendBatteryLevel();
@@ -240,6 +264,111 @@ void ble_task(void* pvParams) {
 }
 
 // ── Hardware functions (Core 1) ───────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  BUZZER  —  Differential-Drive Piezo  (Core 1)
+//
+//  PIN_A carries the LEDC PWM signal; PIN_B is routed through the ESP32
+//  GPIO matrix with output-inversion enabled, so it is always the exact
+//  complement of PIN_A.  Voltage swing across the piezo = 0–6.6 V (~+6 dB
+//  louder than single-ended 3.3 V drive) with zero extra components.
+//
+//  State → sound mapping:
+//    FALL_DETECTED → calm 3-chirp warning (880/1175/880 Hz, 1.5 s cycle)
+//    EMERGENCY     → rapid two-tone siren  (900/1800 Hz, 120 ms alternating)
+//    everything else → silent
+// ─────────────────────────────────────────────────────────────────────────────
+
+#define LEDC_CH       LEDC_CHANNEL_0
+#define LEDC_TMR      LEDC_TIMER_0
+#define LEDC_SPD      LEDC_HIGH_SPEED_MODE
+#define LEDC_BITS     LEDC_TIMER_8_BIT
+#define DUTY_50       128U
+
+#define FREQ_WARN_LO  3800U
+#define FREQ_WARN_HI  4200U
+#define FREQ_EMERG_LO 3700U
+#define FREQ_EMERG_HI 4000U
+
+static bool _buz_active = false;
+
+void buzzerInit() {
+  ledc_timer_config_t t = {};
+  t.speed_mode      = LEDC_SPD;
+  t.duty_resolution = LEDC_BITS;
+  t.timer_num       = LEDC_TMR;
+  t.freq_hz         = 1000;
+  t.clk_cfg         = LEDC_AUTO_CLK;
+  ledc_timer_config(&t);
+
+  ledc_channel_config_t ch = {};
+  ch.gpio_num   = BUZZER_PIN_A;
+  ch.speed_mode = LEDC_SPD;
+  ch.channel    = LEDC_CH;
+  ch.timer_sel  = LEDC_TMR;
+  ch.duty       = 0;
+  ch.hpoint     = 0;
+  ledc_channel_config(&ch);
+
+  // Route INVERTED LEDC signal to PIN_B via GPIO matrix
+  gpio_matrix_out(BUZZER_PIN_B,
+                  LEDC_HS_SIG_OUT0_IDX + (uint32_t)LEDC_CH,
+                  true, false);
+}
+
+void buzzerOn(uint32_t freq) {
+  if (!_buz_active) {
+    gpio_matrix_out(BUZZER_PIN_B,
+                    LEDC_HS_SIG_OUT0_IDX + (uint32_t)LEDC_CH,
+                    true, false);
+    _buz_active = true;
+  }
+  ledc_set_freq(LEDC_SPD, LEDC_TMR, freq);
+  ledc_set_duty(LEDC_SPD, LEDC_CH, DUTY_50);
+  ledc_update_duty(LEDC_SPD, LEDC_CH);
+}
+
+void buzzerOff() {
+  if (_buz_active) {
+    ledc_set_duty(LEDC_SPD, LEDC_CH, 0);
+    ledc_update_duty(LEDC_SPD, LEDC_CH);
+    gpio_matrix_out(BUZZER_PIN_B, SIG_GPIO_OUT_IDX, false, false);
+    gpio_set_level((gpio_num_t)BUZZER_PIN_B, 0);
+    _buz_active = false;
+  }
+}
+
+// FALL_DETECTED: calm 3-chirp attention tone, 1500 ms cycle
+//  [ON 200ms @ 880Hz] [off 80] [ON 200ms @ 1175Hz] [off 80] [ON 200ms @ 880Hz] [off 740]
+void playFallWarning(unsigned long now_ms) {
+  uint32_t t = (uint32_t)(now_ms % 1500UL);
+  if      (t <  200) buzzerOn(FREQ_WARN_LO);
+  else if (t <  280) buzzerOff();
+  else if (t <  480) buzzerOn(FREQ_WARN_HI);
+  else if (t <  560) buzzerOff();
+  else if (t <  760) buzzerOn(FREQ_WARN_LO);
+  else               buzzerOff();
+}
+
+// EMERGENCY: rapid two-tone siren, 2000 ms macro-cycle
+//  900/1800 Hz alternating every 120 ms, with a 250 ms breath gap per cycle
+void playEmergency(unsigned long now_ms) {
+  uint32_t t = (uint32_t)(now_ms % 2000UL);
+  if (t >= 1750UL) { buzzerOff(); return; }   // 250 ms intelligibility gap
+  if ((t / 120UL) % 2 == 0) buzzerOn(FREQ_EMERG_LO);
+  else                        buzzerOn(FREQ_EMERG_HI);
+}
+
+// Called every loop() iteration — maps system state directly to buzzer output
+void updateBuzzer(unsigned long now_ms) {
+  switch (state) {
+    case FALL_DETECTED: playFallWarning(now_ms); break;
+    case EMERGENCY:     playEmergency(now_ms);   break;
+    default:            buzzerOff();              break;
+  }
+}
+
+
 void calibrateVerticalAxis() {
   Serial.println("[Calib] Measuring vertical axis...");
   float sum = 0.0f;
@@ -272,9 +401,10 @@ void enterDeepSleep() {
   digitalWrite(LED_STATUS, LOW);
   digitalWrite(LED_BAT,    LOW);
   digitalWrite(LED_POWER,  LOW);
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_DEFAULT, 0);
-  rtc_gpio_pullup_en((gpio_num_t)BTN_DEFAULT);
-  rtc_gpio_pulldown_dis((gpio_num_t)BTN_DEFAULT);
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BTN_POWER, 0);
+  rtc_gpio_pullup_en((gpio_num_t)BTN_POWER);
+  rtc_gpio_pulldown_dis((gpio_num_t)BTN_POWER);
+  buzzerOff();
   esp_deep_sleep_start();
 }
 
@@ -447,6 +577,8 @@ void setup() {
       0            // Core 0
   );
 
+  buzzerInit();
+
   Serial.println("Ready. Monitoring for falls...");
 }
 
@@ -529,7 +661,7 @@ void loop() {
     updateBatLED(now_ms);
 
     bool currentBtnState   = digitalRead(BTN_ALERT);
-    bool buttonJustPressed = (millis() > 5000) &&
+    bool buttonJustPressed = (millis() > 5000) && device_connected &&
                              (currentBtnState == LOW && lastBtnState == HIGH);
 
     bool app_cancel = false;
@@ -547,7 +679,6 @@ void loop() {
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           state            = EMERGENCY;
           emergency_signal = true;
-          fall_signal      = true;
           xSemaphoreGive(state_mutex);
         }
         break;
@@ -572,6 +703,7 @@ void loop() {
           xSemaphoreTake(state_mutex, portMAX_DELAY);
           fall_signal = false;
           state       = IDLE;
+          if (buttonJustPressed) cancel_signal = true;  // notify app to close modal
           xSemaphoreGive(state_mutex);
         }
         if (elapsed > ble_alert_timeout_ms) {
@@ -591,10 +723,14 @@ void loop() {
           state            = IDLE;
           emergency_signal = false;
           fall_signal      = false;
+          if (buttonJustPressed) cancel_signal = true;  // notify app to close modal
           xSemaphoreGive(state_mutex);
         }
         break;
     }
     lastBtnState = currentBtnState;
   }
+
+  // ── Buzzer — runs every loop iteration for accurate pattern timing ─────
+  updateBuzzer(now_ms);
 }

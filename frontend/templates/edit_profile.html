@@ -16,56 +16,6 @@
             margin-bottom: 10px;
         }
 
-        /* --- Sliding Role Toggle Styles --- */
-        .role-slider-container {
-            background: #f1f1f1;
-            border-radius: 30px;
-            position: relative;
-            display: flex;
-            padding: 4px;
-            margin: 6px 0 0;
-            border: 1px solid #ddd;
-            height: 50px;
-            align-items: center;
-        }
-
-        .role-slider-container input[type="radio"] {
-            display: none;
-        }
-
-        .role-slider-container label {
-            flex: 1;
-            z-index: 2;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 700;
-            color: #666;
-            transition: color 0.3s;
-            font-size: 15px;
-        }
-
-        .role-slider-container .slider-thumb {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            height: calc(100% - 8px);
-            background: #1E90FF;
-            border-radius: 26px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(30,144,255,0.3);
-        }
-
-        #role-caregiver:checked ~ .slider-thumb {
-            transform: translateX(100%);
-        }
-
-        #role-owner:checked ~ label[for="role-owner"],
-        #role-caregiver:checked ~ label[for="role-caregiver"] {
-            color: white;
-        }
-
         /* --- Per-field save layout --- */
         .field-group {
             margin-bottom: 20px;
@@ -106,28 +56,6 @@
 
         .btn-save-inline:hover { background: #104E8B; }
         .btn-save-inline.saved { background: #104E8B; cursor: default; }
-
-        .role-save-row {
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .btn-save-small {
-            background: #1E90FF;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 700;
-            font-family: 'Roboto', sans-serif;
-            cursor: pointer;
-            transition: background 0.2s;
-            width: auto;
-        }
-
-        .btn-save-small:hover { background: #104E8B; }
-        .btn-save-small.saved { background: #104E8B; cursor: default; }
 
         .btn-save-pw {
             display: block;
@@ -176,25 +104,6 @@
     </header>
 
     <div class="page-card">
-
-        <!-- Role -->
-        <div class="field-group">
-            <label class="field-label">Role</label>
-            <div class="role-slider-container">
-                <input type="radio" name="role" id="role-owner" value="owner"
-                       {% if user.role != 'caregiver' %}checked{% endif %}>
-                <label for="role-owner">Owner</label>
-
-                <input type="radio" name="role" id="role-caregiver" value="caregiver"
-                       {% if user.role == 'caregiver' %}checked{% endif %}>
-                <label for="role-caregiver">Caregiver</label>
-
-                <div class="slider-thumb"></div>
-            </div>
-            <div class="role-save-row">
-                <button class="btn-save-small" onclick="saveField(this, 'role')">Save role</button>
-            </div>
-        </div>
 
         <hr>
 

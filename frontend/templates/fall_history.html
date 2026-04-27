@@ -180,7 +180,7 @@
                             <span class="meta-label">Created At</span>
                             <span class="meta-value">
                                 {% if alert.created_at %}
-                                    {{ alert.created_at | replace("T", " ") | truncate(19, True, "") }}
+                                    {{ alert.created_at | replace("T", " ") | truncate(16, True, "") }}
                                 {% else %}—{% endif %}
                             </span>
                         </div>
@@ -190,7 +190,7 @@
                             <span class="ack-by">
                                 ✓ Acknowledged by: <strong>{{ alert.acknowledged_by }}</strong>
                                 {% if alert.acknowledged_at %}
-                                    <br><small style="color: #888; font-weight: normal;">at {{ alert.acknowledged_at }}</small>
+                                    <br><small style="color: #888; font-weight: normal;">at {{ alert.acknowledged_at | replace("T", " ") | truncate(16, True, "") }}</small>
                                 {% endif %}
                             </span>
                         </div>

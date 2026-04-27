@@ -169,15 +169,22 @@
                     <div class="alert-meta">
                         <div class="alert-meta-item">
                             <span class="meta-label">Location</span>
-                            <span class="meta-value">{{ alert.location or '—' }}</span>
+                            <span class="meta-value">
+                                {% if alert.location and alert.location.lat is defined %}
+                                    {{ "%.6f"|format(alert.location.lat) }}, {{ "%.6f"|format(alert.location.lon) }}
+                                {% else %}—{% endif %}
+                            </span>
                         </div>
 
                         <div class="alert-meta-item">
                             <span class="meta-label">Created At</span>
-                            <span class="meta-value">{{ alert.created_at or '—' }}</span>
+                            <span class="meta-value">
+                                {% if alert.created_at %}
+                                    {{ alert.created_at | replace("T", " ") | truncate(19, True, "") }}
+                                {% else %}—{% endif %}
+                            </span>
                         </div>
                     </div>
-
                     {% if alert.status | upper == 'ACKNOWLEDGED' %}
                         <div class="ack-info-box">
                             <span class="ack-by">

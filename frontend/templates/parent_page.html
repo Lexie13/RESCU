@@ -302,6 +302,11 @@
                 const fallService = await bleServer.getPrimaryService(FALL_SERVICE_UUID);
                 fallChar = await fallService.getCharacteristic(FALL_ALERT_UUID);
                 await fallChar.startNotifications();
+
+                const delayPayload = JSON.stringify({ type: "SET_DELAY", value: FALL_DELAY });
+                fallChar.writeValue(new TextEncoder().encode(delayPayload))
+                    .catch(err => console.error("Initial SET_DELAY write failed:", err));
+                    
                 fallChar.addEventListener('characteristicvaluechanged', (e) => {
                     const data = JSON.parse(new TextDecoder().decode(e.target.value));
                     if (data.type === "FALL") {

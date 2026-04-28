@@ -48,9 +48,9 @@ SFE_MAX1704X lipo;
 #define CNN_DELAY_MS        1336UL
 #define STILLNESS_STD_DEV_G 0.15f
 #define STILLNESS_SAMPLES   50
-#define ALERT_TIMEOUT_MS    10000UL
+#define ALERT_TIMEOUT_MS    5000UL
 #define COOLDOWN_MS         5000UL
-#define BATTERY_READ_MS     3000UL
+#define BATTERY_READ_MS     120000UL
 #define SLEEP_HOLD_MS       3000UL
 #define CALIB_SAMPLES       50
 
@@ -193,8 +193,9 @@ class ServerCallbacks : public BLEServerCallbacks {
     device_connected = true;
     digitalWrite(LED_STATUS, HIGH);
     Serial.println("[BLE] Device connected.");
-    sendBatteryLevel();
-  }
+    readBattery();        // fresh hardware read on connect
+    sendBatteryLevel();   // then immediately notify the app
+}
   void onDisconnect(BLEServer* pServer) {
     device_connected  = false;
     needsAdvRestart   = true;
@@ -206,6 +207,30 @@ class ServerCallbacks : public BLEServerCallbacks {
 // ── Fall alert WRITE callback — app cancels alert by writing any value ────
 class FallAlertCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pChar) {
+    String val = pChar->getValue().c_str();
+
+    // Check if it's a SET_DELAY command
+    if (val.indexOf("SET_DELAY") >= 0) {
+      int valueIndex = val.indexOf("\"value\":");
+      if (valueIndex >= 0) {
+        int start = valueIndex + 8;  // skip past "value":
+        int end   = val.indexOf("}", start);
+        String numStr = val.substring(start, end);
+        numStr.trim();
+        uint32_t new_delay = (uint32_t)(numStr.toFloat() * 1000UL);  // seconds → ms
+        if (new_delay >= 5000UL && new_delay <= 60000UL) {  // sanity check 5–60s
+          xSemaphoreTake(state_mutex, portMAX_DELAY);
+          ble_alert_timeout_ms = new_delay;
+          xSemaphoreGive(state_mutex);
+          Serial.print("[BLE] Fall delay updated to: ");
+          Serial.print(new_delay);
+          Serial.println("ms");
+        }
+      }
+      return;  // don't treat SET_DELAY as a cancel
+    }
+
+    // Otherwise treat as cancel
     xSemaphoreTake(state_mutex, portMAX_DELAY);
     ble_cancel_request = true;
     xSemaphoreGive(state_mutex);
@@ -459,27 +484,27 @@ float run_inference() {
   Serial.println("Unknown output type!"); return 0.0f;
 }
 
-float check_stillness() {
-  float ax_arr[STILLNESS_SAMPLES], ay_arr[STILLNESS_SAMPLES], az_arr[STILLNESS_SAMPLES];
-  float sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
-  for (int i = 0; i < STILLNESS_SAMPLES; i++) {
-    int idx = (write_head - 1 - i + WINDOW_SIZE) % WINDOW_SIZE;
-    ax_arr[i] = circ_buf[idx][0] * SCALER_SCALE[0] + SCALER_MEAN[0];
-    ay_arr[i] = circ_buf[idx][1] * SCALER_SCALE[1] + SCALER_MEAN[1];
-    az_arr[i] = circ_buf[idx][2] * SCALER_SCALE[2] + SCALER_MEAN[2];
-    sum_x += ax_arr[i]; sum_y += ay_arr[i]; sum_z += az_arr[i];
-  }
-  float mean_x = sum_x / STILLNESS_SAMPLES;
-  float mean_y = sum_y / STILLNESS_SAMPLES;
-  float mean_z = sum_z / STILLNESS_SAMPLES;
-  float variance = 0.0f;
-  for (int i = 0; i < STILLNESS_SAMPLES; i++) {
-    variance += (ax_arr[i]-mean_x)*(ax_arr[i]-mean_x) +
-                (ay_arr[i]-mean_y)*(ay_arr[i]-mean_y) +
-                (az_arr[i]-mean_z)*(az_arr[i]-mean_z);
-  }
-  return sqrtf(variance / STILLNESS_SAMPLES);
-}
+// float check_stillness() {
+//   float ax_arr[STILLNESS_SAMPLES], ay_arr[STILLNESS_SAMPLES], az_arr[STILLNESS_SAMPLES];
+//   float sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
+//   for (int i = 0; i < STILLNESS_SAMPLES; i++) {
+//     int idx = (write_head - 1 - i + WINDOW_SIZE) % WINDOW_SIZE;
+//     ax_arr[i] = circ_buf[idx][0] * SCALER_SCALE[0] + SCALER_MEAN[0];
+//     ay_arr[i] = circ_buf[idx][1] * SCALER_SCALE[1] + SCALER_MEAN[1];
+//     az_arr[i] = circ_buf[idx][2] * SCALER_SCALE[2] + SCALER_MEAN[2];
+//     sum_x += ax_arr[i]; sum_y += ay_arr[i]; sum_z += az_arr[i];
+//   }
+//   float mean_x = sum_x / STILLNESS_SAMPLES;
+//   float mean_y = sum_y / STILLNESS_SAMPLES;
+//   float mean_z = sum_z / STILLNESS_SAMPLES;
+//   float variance = 0.0f;
+//   for (int i = 0; i < STILLNESS_SAMPLES; i++) {
+//     variance += (ax_arr[i]-mean_x)*(ax_arr[i]-mean_x) +
+//                 (ay_arr[i]-mean_y)*(ay_arr[i]-mean_y) +
+//                 (az_arr[i]-mean_z)*(az_arr[i]-mean_z);
+//   }
+//   return sqrtf(variance / STILLNESS_SAMPLES);
+// }
 
 // ── Setup ─────────────────────────────────────────────────────────────────
 void setup() {
@@ -630,12 +655,12 @@ void loop() {
     if (state == WAITING_FOR_CNN && (now_ms - svm_trigger_ms >= CNN_DELAY_MS)) {
       state = RUNNING_CNN;
       float prob    = run_inference();
-      float std_dev = check_stillness();
+      // float std_dev = check_stillness();
 
       Serial.print("[CNN] prob="); Serial.print(prob);
-      Serial.print("  [Stillness] StdDev="); Serial.println(std_dev);
+      // Serial.print("  [Stillness] StdDev="); Serial.println(std_dev);
 
-      if (prob >= FALL_THRESH && std_dev < STILLNESS_STD_DEV_G) {
+      if (prob >= FALL_THRESH /* && std_dev < STILLNESS_STD_DEV_G */) {
         Serial.println(">>> FALL CONFIRMED");
         xSemaphoreTake(state_mutex, portMAX_DELAY);
         state       = FALL_DETECTED;
